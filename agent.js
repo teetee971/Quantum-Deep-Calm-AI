@@ -1,1 +1,1 @@
-// Contenu simulé de agent.js
+<!-- Simulated agent.js for V3 PREMIUM -->
