@@ -1,1 +1,2 @@
-// Contenu simulé de healthcheck.sh
+#!/bin/bash
+echo 'OK'

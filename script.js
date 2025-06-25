@@ -1,0 +1,1 @@
+const messages=['Respirez','Lâchez prise','Sentez le calme'];console.log(messages[Math.floor(Math.random()*messages.length)]);

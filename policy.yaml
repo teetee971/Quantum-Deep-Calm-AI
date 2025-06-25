@@ -1,1 +1,2 @@
-// Contenu simulé de policy.yaml
+security:
+  content-security-policy: default-src 'self'
