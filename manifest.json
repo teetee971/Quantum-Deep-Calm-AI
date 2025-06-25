@@ -1,0 +1,20 @@
+{
+  "name": "Quantum Deep Calm AI",
+  "short_name": "Quantum Calm",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#10141a",
+  "theme_color": "#00c9a7",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
