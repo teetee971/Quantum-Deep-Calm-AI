@@ -1,1 +1,78 @@
-404: Not Found
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Assistant Vocal – Quantum Deep Calm AI</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #0d0d0d;
+      color: #fff;
+      font-family: "Segoe UI", sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+
+    h1 {
+      font-size: 2em;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    button {
+      background-color: #1e90ff;
+      color: white;
+      padding: 15px 30px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.2em;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    button:hover {
+      background-color: #0077cc;
+    }
+
+    .output {
+      margin-top: 25px;
+      font-size: 1.1em;
+      text-align: center;
+      max-width: 80%;
+    }
+  </style>
+</head>
+<body>
+  <h1>Assistant Vocal Intégré</h1>
+  <button onclick="demarrerReconnaissance()">🎙️ Parlez maintenant</button>
+  <div class="output" id="output"></div>
+
+  <script>
+    function demarrerReconnaissance() {
+      const output = document.getElementById("output");
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = "fr-FR";
+      recognition.interimResults = false;
+      recognition.maxAlternatives = 1;
+
+      output.textContent = "🎧 Écoute en cours...";
+
+      recognition.onresult = function(event) {
+        const resultat = event.results[0][0].transcript;
+        output.textContent = "🗣️ Vous avez dit : " + resultat;
+      };
+
+      recognition.onerror = function(event) {
+        output.textContent = "❌ Erreur : " + event.error;
+      };
+
+      recognition.start();
+    }
+  </script>
+</body>
+</html>
