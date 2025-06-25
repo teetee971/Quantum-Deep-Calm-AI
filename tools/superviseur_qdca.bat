@@ -1,0 +1,1 @@
+// Contenu simulé de tools/superviseur_qdca.bat
