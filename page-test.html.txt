@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Page Test - Quantum Deep Calm AI</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f0f0f;
+      color: #ffffff;
+      text-align: center;
+      padding: 80px;
+    }
+    h1 {
+      color: #00ffff;
+    }
+    a {
+      color: #ffcc00;
+    }
+  </style>
+</head>
+<body>
+  <h1>Bienvenue sur la page test de Quantum Deep Calm AI</h1>
+  <p>Ce contenu est affiché correctement depuis GitHub Pages.</p>
+  <p><a href="index.html">Retour à la page principale</a></p>
+</body>
+</html>
