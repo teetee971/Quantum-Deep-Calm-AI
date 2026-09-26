@@ -40,7 +40,7 @@ jobs:
         run: |
           set -euo pipefail
           if grep -RIl --exclude-dir=.git -- 'Contenu simulé' . >/tmp/placeholders.txt 2>/dev/null; then
-            echo "::warning::Legacy placeholder files still exist and must be replaced during Android migration."
+            echo "::warning::Legacy placeholder files still exist and must be removed during Android migration."
             cat /tmp/placeholders.txt
           fi
 
@@ -56,36 +56,38 @@ jobs:
         id: detect
         shell: bash
         run: |
-          if [ -f gradlew ] && { [ -f settings.gradle ] || [ -f settings.gradle.kts ]; }; then
+          if [ -f settings.gradle.kts ] && [ -f app/build.gradle.kts ]; then
             echo "android=true" >> "$GITHUB_OUTPUT"
           else
             echo "android=false" >> "$GITHUB_OUTPUT"
-            echo "### Android scaffold not present yet" >> "$GITHUB_STEP_SUMMARY"
-            echo "The pipeline is active. The Gradle build will start automatically as soon as the native Android scaffold is committed." >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::Native Android project scaffold is missing."
+            exit 1
           fi
 
       - name: Set up JDK 17
-        if: steps.detect.outputs.android == 'true'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
 
-      - name: Set up Gradle
-        if: steps.detect.outputs.android == 'true'
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 16 SDK
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle 9.6
         uses: gradle/actions/setup-gradle@v4
-
-      - name: Make Gradle wrapper executable
-        if: steps.detect.outputs.android == 'true'
-        run: chmod +x ./gradlew
+        with:
+          gradle-version: '9.6.0'
 
       - name: Lint, unit tests and debug APK
-        if: steps.detect.outputs.android == 'true'
-        run: ./gradlew --no-daemon clean lintDebug testDebugUnitTest assembleDebug
+        run: gradle --no-daemon lintDebug testDebugUnitTest assembleDebug
 
       - name: Upload debug APK
-        if: steps.detect.outputs.android == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: quantum-deep-calm-ai-debug-${{ github.sha }}
