@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   health-check:
-    name: Scheduled repository and Android health check
+    name: Scheduled Android health check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -31,39 +31,33 @@ jobs:
             echo "$large_files"
             exit 1
           fi
-
-      - name: Detect Android project
-        id: detect
-        shell: bash
-        run: |
-          if [ -f gradlew ] && { [ -f settings.gradle ] || [ -f settings.gradle.kts ]; }; then
-            echo "android=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "android=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Android scaffold not committed yet. Scheduled guard remains active."
-          fi
+          test -f settings.gradle.kts
+          test -f app/build.gradle.kts
 
       - name: Set up JDK 17
-        if: steps.detect.outputs.android == 'true'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
 
-      - name: Set up Gradle
-        if: steps.detect.outputs.android == 'true'
-        uses: gradle/actions/setup-gradle@v4
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Validate Android project
-        if: steps.detect.outputs.android == 'true'
+      - name: Install Android 16 SDK
         shell: bash
         run: |
-          chmod +x ./gradlew
-          ./gradlew --no-daemon lintDebug testDebugUnitTest assembleDebug
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle 9.6
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Validate Android project
+        run: gradle --no-daemon lintDebug testDebugUnitTest assembleDebug
 
       - name: Upload latest debug APK
-        if: steps.detect.outputs.android == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: quantum-deep-calm-ai-hourly-debug
