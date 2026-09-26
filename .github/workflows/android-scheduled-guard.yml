@@ -14,11 +14,11 @@ concurrency:
 
 jobs:
   health-check:
-    name: Scheduled repository and Android health check
+    name: Scheduled Android health check
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Repository integrity
         shell: bash
@@ -31,39 +31,34 @@ jobs:
             echo "$large_files"
             exit 1
           fi
-
-      - name: Detect Android project
-        id: detect
-        shell: bash
-        run: |
-          if [ -f gradlew ] && { [ -f settings.gradle ] || [ -f settings.gradle.kts ]; }; then
-            echo "android=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "android=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Android scaffold not committed yet. Scheduled guard remains active."
-          fi
+          test -f settings.gradle.kts
+          test -f app/build.gradle.kts
 
       - name: Set up JDK 17
-        if: steps.detect.outputs.android == 'true'
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
 
-      - name: Set up Gradle
-        if: steps.detect.outputs.android == 'true'
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Validate Android project
-        if: steps.detect.outputs.android == 'true'
+      - name: Install Android 17 SDK
         shell: bash
         run: |
-          chmod +x ./gradlew
-          ./gradlew --no-daemon lintDebug testDebugUnitTest assembleDebug
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          test -n "$SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" "platforms;android-37.0" "build-tools;37.0.0"
+
+      - name: Set up Gradle 9.6
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Validate Android project
+        run: gradle --no-daemon lintDebug testDebugUnitTest assembleDebug
 
       - name: Upload latest debug APK
-        if: steps.detect.outputs.android == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: quantum-deep-calm-ai-hourly-debug
