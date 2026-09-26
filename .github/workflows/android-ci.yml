@@ -1,0 +1,94 @@
+name: Android CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  merge_group:
+    types: [ checks_requested ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repository-gate:
+    name: Repository gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Reject files larger than 100 MB
+        shell: bash
+        run: |
+          set -euo pipefail
+          large_files="$(find . -type f -not -path './.git/*' -size +100M -print)"
+          if [ -n "$large_files" ]; then
+            echo "::error::Files larger than 100 MB are not allowed:"
+            echo "$large_files"
+            exit 1
+          fi
+
+      - name: Report placeholder legacy files
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RIl --exclude-dir=.git -- 'Contenu simulé' . >/tmp/placeholders.txt 2>/dev/null; then
+            echo "::warning::Legacy placeholder files still exist and must be replaced during Android migration."
+            cat /tmp/placeholders.txt
+          fi
+
+  android-build:
+    name: Android build
+    needs: repository-gate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Detect Android project
+        id: detect
+        shell: bash
+        run: |
+          if [ -f gradlew ] && { [ -f settings.gradle ] || [ -f settings.gradle.kts ]; }; then
+            echo "android=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "android=false" >> "$GITHUB_OUTPUT"
+            echo "### Android scaffold not present yet" >> "$GITHUB_STEP_SUMMARY"
+            echo "The pipeline is active. The Gradle build will start automatically as soon as the native Android scaffold is committed." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Set up JDK 17
+        if: steps.detect.outputs.android == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Gradle
+        if: steps.detect.outputs.android == 'true'
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradle wrapper executable
+        if: steps.detect.outputs.android == 'true'
+        run: chmod +x ./gradlew
+
+      - name: Lint, unit tests and debug APK
+        if: steps.detect.outputs.android == 'true'
+        run: ./gradlew --no-daemon clean lintDebug testDebugUnitTest assembleDebug
+
+      - name: Upload debug APK
+        if: steps.detect.outputs.android == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: quantum-deep-calm-ai-debug-${{ github.sha }}
+          path: '**/build/outputs/apk/debug/*.apk'
+          if-no-files-found: error
+          retention-days: 14
