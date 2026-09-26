@@ -1,0 +1,72 @@
+name: Android Scheduled Guard
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-scheduled-guard
+  cancel-in-progress: true
+
+jobs:
+  health-check:
+    name: Scheduled repository and Android health check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Repository integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fsck --no-progress
+          large_files="$(find . -type f -not -path './.git/*' -size +100M -print)"
+          if [ -n "$large_files" ]; then
+            echo "::error::Files larger than 100 MB detected:"
+            echo "$large_files"
+            exit 1
+          fi
+
+      - name: Detect Android project
+        id: detect
+        shell: bash
+        run: |
+          if [ -f gradlew ] && { [ -f settings.gradle ] || [ -f settings.gradle.kts ]; }; then
+            echo "android=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "android=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Android scaffold not committed yet. Scheduled guard remains active."
+          fi
+
+      - name: Set up JDK 17
+        if: steps.detect.outputs.android == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Gradle
+        if: steps.detect.outputs.android == 'true'
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Validate Android project
+        if: steps.detect.outputs.android == 'true'
+        shell: bash
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon lintDebug testDebugUnitTest assembleDebug
+
+      - name: Upload latest debug APK
+        if: steps.detect.outputs.android == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: quantum-deep-calm-ai-hourly-debug
+          path: '**/build/outputs/apk/debug/*.apk'
+          if-no-files-found: error
+          retention-days: 3
