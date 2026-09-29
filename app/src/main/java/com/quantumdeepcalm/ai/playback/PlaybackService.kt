@@ -37,7 +37,14 @@ class PlaybackService : MediaSessionService() {
 
     override fun onGetSession(
         controllerInfo: MediaSession.ControllerInfo,
-    ): MediaSession? = mediaSession
+    ): MediaSession? {
+        val isOwnApp = controllerInfo.packageName == packageName
+        return if (isOwnApp || controllerInfo.isTrusted) {
+            mediaSession
+        } else {
+            null
+        }
+    }
 
     override fun onDestroy() {
         mediaSession?.run {
