@@ -45,21 +45,9 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private data class TopLevelDestination(
-    val route: String,
-    val label: String,
-)
-
 private data class CalmSection(
     val title: String,
     val subtitle: String,
-)
-
-private val topLevelDestinations = listOf(
-    TopLevelDestination("home", "Accueil"),
-    TopLevelDestination("library", "Bibliothèque"),
-    TopLevelDestination("sleep", "Sommeil"),
-    TopLevelDestination("progress", "Progression"),
 )
 
 @Composable
@@ -75,13 +63,13 @@ private fun QuantumDeepCalmApp() {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-    val showBottomBar = currentRoute in topLevelDestinations.map { it.route }
+    val showBottomBar = currentRoute in AppNavigationContract.topLevelDestinations.map { it.route }
 
     Scaffold(
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar {
-                    topLevelDestinations.forEach { destination ->
+                    AppNavigationContract.topLevelDestinations.forEach { destination ->
                         NavigationBarItem(
                             selected = currentRoute == destination.route,
                             onClick = {
@@ -103,31 +91,31 @@ private fun QuantumDeepCalmApp() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = "home",
+            startDestination = AppNavigationContract.START_ROUTE,
             modifier = Modifier.padding(innerPadding),
         ) {
-            composable("home") {
-                HomeScreen(onOpenPlayer = { navController.navigate("player") })
+            composable(AppNavigationContract.HOME) {
+                HomeScreen(onOpenPlayer = { navController.navigate(AppNavigationContract.PLAYER) })
             }
-            composable("library") {
+            composable(AppNavigationContract.LIBRARY) {
                 SimpleSectionScreen(
                     title = "Bibliothèque",
                     body = "Les méditations téléchargées, favorites et disponibles hors connexion seront regroupées ici.",
                 )
             }
-            composable("sleep") {
+            composable(AppNavigationContract.SLEEP) {
                 SimpleSectionScreen(
                     title = "Sommeil",
                     body = "Routines du soir, histoires, sons continus et programmes d'endormissement.",
                 )
             }
-            composable("progress") {
+            composable(AppNavigationContract.PROGRESS) {
                 SimpleSectionScreen(
                     title = "Progression",
                     body = "Historique, régularité, minutes méditées et objectifs personnels.",
                 )
             }
-            composable("player") {
+            composable(AppNavigationContract.PLAYER) {
                 PlayerScreen(onBack = { navController.popBackStack() })
             }
         }

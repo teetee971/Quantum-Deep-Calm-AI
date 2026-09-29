@@ -105,6 +105,29 @@ jobs:
       - name: Lint, unit tests, debug APK and release AAB
         run: gradle --no-daemon lintDebug lintRelease testDebugUnitTest assembleDebug bundleRelease
 
+      - name: Verify unit tests actually executed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          reports = sorted(Path("app/build/test-results/testDebugUnitTest").glob("TEST-*.xml"))
+          if not reports:
+              raise SystemExit("No JUnit XML reports were produced; refusing a false-green test job.")
+
+          executed = 0
+          for report in reports:
+              root = ET.parse(report).getroot()
+              executed += int(root.attrib.get("tests", "0"))
+
+          if executed <= 0:
+              raise SystemExit("Zero unit tests executed; refusing a false-green test job.")
+
+          print(f"Verified {executed} unit test(s) executed.")
+          PY
+
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
