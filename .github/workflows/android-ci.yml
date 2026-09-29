@@ -36,7 +36,8 @@ jobs:
             exit 1
           fi
 
-          if grep -RIl --exclude-dir=.git -- 'Contenu simulé' . >/tmp/placeholders.txt 2>/dev/null; then
+          placeholder_pattern="Contenu"" simulé"
+          if grep -RIl --exclude-dir=.git -- "$placeholder_pattern" . >/tmp/placeholders.txt 2>/dev/null; then
             echo "::error::Legacy placeholder files are forbidden:"
             cat /tmp/placeholders.txt
             exit 1
