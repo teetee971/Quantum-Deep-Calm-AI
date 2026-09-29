@@ -160,20 +160,18 @@ private fun HomeScreen(onOpenPlayer: () -> Unit) {
                 text = "Application Android native",
                 style = MaterialTheme.typography.bodyLarge,
             )
-            Spacer(modifier = Modifier.height(12.dp))
-        }
-
-        items(sections) { section ->
-            CalmSectionCard(section)
-        }
-
-        item {
+            Spacer(modifier = Modifier.height(18.dp))
             Button(
                 onClick = onOpenPlayer,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("Ouvrir le lecteur")
             }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        items(sections) { section ->
+            CalmSectionCard(section)
         }
     }
 }
