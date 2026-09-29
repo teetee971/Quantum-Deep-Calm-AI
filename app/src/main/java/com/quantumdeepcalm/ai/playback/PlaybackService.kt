@@ -1,5 +1,9 @@
 package com.quantumdeepcalm.ai.playback
 
+import android.net.Uri
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -11,7 +15,23 @@ class PlaybackService : MediaSessionService() {
     override fun onCreate() {
         super.onCreate()
 
-        val player = ExoPlayer.Builder(this).build()
+        val calmAudioFile = CalmAudioGenerator.ensureGeneratedFile(this)
+        val calmMediaItem = MediaItem.Builder()
+            .setUri(Uri.fromFile(calmAudioFile))
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle("Ambiance calme")
+                    .setArtist("Quantum Deep Calm AI")
+                    .build(),
+            )
+            .build()
+
+        val player = ExoPlayer.Builder(this).build().apply {
+            repeatMode = Player.REPEAT_MODE_ONE
+            setMediaItem(calmMediaItem)
+            prepare()
+        }
+
         mediaSession = MediaSession.Builder(this, player).build()
     }
 
