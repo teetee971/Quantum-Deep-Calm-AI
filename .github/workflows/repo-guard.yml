@@ -1,0 +1,63 @@
+name: Repo Guard
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  repository-policy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          lfs: false
+
+      - name: Enforce repository policy
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if git lfs ls-files 2>/dev/null | grep -q .; then
+            echo "::error::Git LFS tracked files are forbidden."
+            exit 1
+          fi
+
+          if git grep -Il '^version https://git-lfs.github.com/spec/v1$' HEAD -- . | grep -q .; then
+            echo "::error::Git LFS pointer detected in HEAD."
+            exit 1
+          fi
+
+          forbidden_ext='\.(psd|ai|fig|sketch|xd|mp4|mov|avi|mkv|webm|zip|rar|7z)$'
+          if git ls-files | grep -Ei "$forbidden_ext" >/tmp/forbidden-files.txt; then
+            echo "::error::Forbidden repository files:"
+            cat /tmp/forbidden-files.txt
+            exit 1
+          fi
+
+          if git ls-files | grep -Ei '(^|/)(backup|old|archive|extract|final|draft|history)/' >/tmp/forbidden-dirs.txt; then
+            echo "::error::Temporary/obsolete directories are forbidden:"
+            cat /tmp/forbidden-dirs.txt
+            exit 1
+          fi
+
+          if git ls-files | grep -Ei '^[^/]*(A_.*\.png|mockup|screenshot)[^/]*$' >/tmp/root-marketing.txt; then
+            echo "::error::Root-level marketing assets are forbidden:"
+            cat /tmp/root-marketing.txt
+            exit 1
+          fi
+
+          max_bytes=$((5 * 1024 * 1024))
+          while IFS= read -r -d '' file; do
+            size="$(wc -c < "$file")"
+            if [ "$size" -gt "$max_bytes" ]; then
+              echo "::error file=$file::Tracked file exceeds 5 MiB policy ($size bytes)."
+              exit 1
+            fi
+          done < <(git ls-files -z)
+
+          git diff --check
