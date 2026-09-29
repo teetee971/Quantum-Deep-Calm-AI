@@ -147,10 +147,11 @@ private fun QuantumDeepCalmApp() {
 @Composable
 private fun HomeScreen(onOpenPlayer: () -> Unit) {
     val sections = listOf(
-        CalmSection("Méditation", "Séances guidées et programmes personnalisés"),
-        CalmSection("Respiration", "Exercices courts pour ralentir et se recentrer"),
-        CalmSection("Sommeil", "Routines du soir, sons et séances d'endormissement"),
-        CalmSection("Concentration", "Sessions conçues pour retrouver une attention stable"),
+        CalmSection("Calm", "Ambiance locale pour ralentir et retrouver un rythme plus calme"),
+        CalmSection("Alpha Relaxation", "Session de relaxation sonore, sans promesse d’effet neurologique"),
+        CalmSection("Theta Meditation", "Méditation immersive inspirée de l’identité Quantum Deep Calm"),
+        CalmSection("Delta Concentration", "Session audio conçue pour une écoute posée et sans distraction"),
+        CalmSection("Schumann", "Ambiance sonore thématique ; aucune allégation thérapeutique"),
     )
 
     LazyColumn(
@@ -174,7 +175,7 @@ private fun HomeScreen(onOpenPlayer: () -> Unit) {
                 onClick = onOpenPlayer,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Ouvrir le lecteur")
+                Text("Commencer une session")
             }
             Spacer(modifier = Modifier.height(12.dp))
         }
