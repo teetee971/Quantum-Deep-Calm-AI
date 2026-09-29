@@ -18,6 +18,13 @@ class MainActivitySmokeTest {
 
     @Test
     fun offlinePlayerConnectsAndStartsPlayback() {
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            composeTestRule
+                .onAllNodesWithText("Ouvrir le lecteur")
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        }
+
         composeTestRule
             .onNodeWithText("Ouvrir le lecteur")
             .performClick()
