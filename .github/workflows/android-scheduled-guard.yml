@@ -1,4 +1,4 @@
-name: Android Scheduled Guard
+name: Android Autoloop
 
 on:
   schedule:
@@ -6,31 +6,43 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 concurrency:
-  group: android-scheduled-guard
+  group: android-autoloop
   cancel-in-progress: true
 
 jobs:
-  health-check:
-    name: Scheduled Android health check
+  self-heal:
+    name: Android self-heal and Play readiness
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
+      - name: Checkout main
         uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
 
       - name: Repository integrity
         shell: bash
         run: |
           set -euo pipefail
           git fsck --no-progress
+
           large_files="$(find . -type f -not -path './.git/*' -size +100M -print)"
           if [ -n "$large_files" ]; then
             echo "::error::Files larger than 100 MB detected:"
             echo "$large_files"
             exit 1
           fi
+
+          if grep -RIl --exclude-dir=.git -- 'Contenu simulé' . >/tmp/placeholders.txt 2>/dev/null; then
+            echo "::error::Legacy placeholder files are forbidden:"
+            cat /tmp/placeholders.txt
+            exit 1
+          fi
+
           test -f settings.gradle.kts
           test -f app/build.gradle.kts
 
@@ -44,7 +56,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDK_ROOT="\${ANDROID_SDK_ROOT:-\${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
           SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
@@ -55,13 +67,119 @@ jobs:
         with:
           gradle-version: '9.6.0'
 
+      - name: Apply deterministic safe fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Android Lint applies only fixes it declares safe/available.
+          gradle --no-daemon lintFix || true
+
+          # Normalize text files without changing program semantics.
+          python3 - <<'PY'
+          from pathlib import Path
+
+          allowed_suffixes = {
+              ".kt", ".kts", ".xml", ".md", ".yml", ".yaml",
+              ".properties", ".sh", ".txt", ".json"
+          }
+          allowed_names = {".gitignore", ".gitattributes"}
+          ignored_parts = {".git", ".gradle", "build"}
+
+          for path in Path(".").rglob("*"):
+              if not path.is_file():
+                  continue
+              if any(part in ignored_parts for part in path.parts):
+                  continue
+              if path.suffix.lower() not in allowed_suffixes and path.name not in allowed_names:
+                  continue
+
+              data = path.read_bytes()
+              if b"\x00" in data:
+                  continue
+
+              try:
+                  text = data.decode("utf-8")
+              except UnicodeDecodeError:
+                  continue
+
+              text = text.replace("\r\n", "\n").replace("\r", "\n")
+              lines = [line.rstrip() for line in text.split("\n")]
+              normalized = "\n".join(lines).rstrip("\n") + "\n"
+              encoded = normalized.encode("utf-8")
+
+              if encoded != data:
+                  path.write_bytes(encoded)
+          PY
+
+          git diff --check
+
+      - name: Zero-debt source gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -RInE --exclude-dir=build --exclude-dir=.gradle '\b(TODO|FIXME|HACK|XXX)\b' app/src/main >/tmp/debt-markers.txt 2>/dev/null; then
+            echo "::error::Source debt markers are forbidden in app/src/main:"
+            cat /tmp/debt-markers.txt
+            exit 1
+          fi
+
+          target_sdk="$(sed -nE 's/^[[:space:]]*targetSdk[[:space:]]*=[[:space:]]*([0-9]+).*/\1/p' app/build.gradle.kts | head -n 1)"
+          if [ -z "$target_sdk" ] || [ "$target_sdk" -lt 36 ]; then
+            echo "::error::Google Play targetSdk gate failed. Found: \${target_sdk:-missing}; required: 36+"
+            exit 1
+          fi
+
       - name: Validate Android project
-        run: gradle --no-daemon lintDebug testDebugUnitTest assembleDebug
+        run: gradle --no-daemon lintDebug lintRelease testDebugUnitTest assembleDebug bundleRelease
+
+      - name: Detect safe-fix changes
+        id: changes
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git status --short
+          fi
+
+      - name: Publish safe fixes to a pull request
+        if: steps.changes.outputs.changed == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: \${{ github.token }}
+        run: |
+          set -euo pipefail
+          branch="autofix/android-autoloop"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$branch"
+          git add -A
+          git commit -m "chore(android): apply deterministic autoloop fixes"
+          git push --force-with-lease origin "$branch"
+
+          if ! gh pr list --head "$branch" --base main --state open --json number --jq '.[0].number' | grep -q '[0-9]'; then
+            gh pr create \
+              --base main \
+              --head "$branch" \
+              --title "chore(android): deterministic autoloop fixes" \
+              --body "Automated safe fixes generated only after lint, unit tests, APK build and release AAB build passed."
+          fi
 
       - name: Upload latest debug APK
         uses: actions/upload-artifact@v4
         with:
           name: quantum-deep-calm-ai-hourly-debug
           path: '**/build/outputs/apk/debug/*.apk'
+          if-no-files-found: error
+          retention-days: 3
+
+      - name: Upload latest release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: quantum-deep-calm-ai-hourly-release-aab
+          path: '**/build/outputs/bundle/release/*.aab'
           if-no-files-found: error
           retention-days: 3
