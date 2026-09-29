@@ -1,1 +1,0 @@
-// Contenu simulé de tools/README_SUPERVISEUR.md

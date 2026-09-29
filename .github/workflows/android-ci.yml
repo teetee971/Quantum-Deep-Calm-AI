@@ -24,10 +24,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Reject files larger than 100 MB
+      - name: Repository integrity and zero-debt gate
         shell: bash
         run: |
           set -euo pipefail
+
           large_files="$(find . -type f -not -path './.git/*' -size +100M -print)"
           if [ -n "$large_files" ]; then
             echo "::error::Files larger than 100 MB are not allowed:"
@@ -35,17 +36,38 @@ jobs:
             exit 1
           fi
 
-      - name: Report placeholder legacy files
+          placeholder_pattern="Contenu"" simulé"
+          if grep -RIl --exclude-dir=.git -- "$placeholder_pattern" . >/tmp/placeholders.txt 2>/dev/null; then
+            echo "::error::Legacy placeholder files are forbidden:"
+            cat /tmp/placeholders.txt
+            exit 1
+          fi
+
+          if grep -RInE --exclude-dir=build --exclude-dir=.gradle '\b(TODO|FIXME|HACK|XXX)\b' app/src/main >/tmp/debt-markers.txt 2>/dev/null; then
+            echo "::error::Source debt markers are forbidden in app/src/main:"
+            cat /tmp/debt-markers.txt
+            exit 1
+          fi
+
+          git diff --check
+
+      - name: Verify Google Play target API
         shell: bash
         run: |
           set -euo pipefail
-          if grep -RIl --exclude-dir=.git -- 'Contenu simulé' . >/tmp/placeholders.txt 2>/dev/null; then
-            echo "::warning::Legacy placeholder files still exist and must be removed during Android migration."
-            cat /tmp/placeholders.txt
+          target_sdk="$(sed -nE 's/^[[:space:]]*targetSdk[[:space:]]*=[[:space:]]*([0-9]+).*/\1/p' app/build.gradle.kts | head -n 1)"
+          if [ -z "$target_sdk" ]; then
+            echo "::error::Unable to read targetSdk from app/build.gradle.kts"
+            exit 1
           fi
+          if [ "$target_sdk" -lt 36 ]; then
+            echo "::error::Google Play submissions require targetSdk 36+ from 2026-08-31. Found: $target_sdk"
+            exit 1
+          fi
+          echo "targetSdk=$target_sdk"
 
   android-build:
-    name: Android build
+    name: Android build + Play bundle
     needs: repository-gate
     runs-on: ubuntu-latest
     steps:
@@ -55,6 +77,7 @@ jobs:
       - name: Detect Android project
         shell: bash
         run: |
+          set -euo pipefail
           test -f settings.gradle.kts
           test -f app/build.gradle.kts
 
@@ -79,13 +102,21 @@ jobs:
         with:
           gradle-version: '9.6.0'
 
-      - name: Lint, unit tests and debug APK
-        run: gradle --no-daemon lintDebug testDebugUnitTest assembleDebug
+      - name: Lint, unit tests, debug APK and release AAB
+        run: gradle --no-daemon lintDebug lintRelease testDebugUnitTest assembleDebug bundleRelease
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
           name: quantum-deep-calm-ai-debug-${{ github.sha }}
           path: '**/build/outputs/apk/debug/*.apk'
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload release AAB
+        uses: actions/upload-artifact@v4
+        with:
+          name: quantum-deep-calm-ai-release-bundle-${{ github.sha }}
+          path: '**/build/outputs/bundle/release/*.aab'
           if-no-files-found: error
           retention-days: 14
