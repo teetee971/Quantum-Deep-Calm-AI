@@ -55,7 +55,7 @@ jobs:
           gradle-version: '9.6.0'
 
       - name: Run managed-device instrumentation smoke
-        run: gradle --no-daemon pixel2api35DebugAndroidTest
+        run: ./gradlew --no-daemon pixel2api35DebugAndroidTest
 
       - name: Upload instrumentation reports
         if: always()
