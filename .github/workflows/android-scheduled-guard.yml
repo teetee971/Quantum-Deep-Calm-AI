@@ -80,7 +80,7 @@ jobs:
           fi
 
           # Android Lint applies only fixes it declares safe/available.
-          gradle --no-daemon lintFix || true
+          ./gradlew --no-daemon lintFix || true
 
           # Normalize text files without changing program semantics.
           python3 - <<'PY'
@@ -138,7 +138,7 @@ jobs:
           fi
 
       - name: Validate Android project
-        run: gradle --no-daemon lintDebug lintRelease testDebugUnitTest assembleDebug bundleRelease
+        run: ./gradlew --no-daemon lintDebug lintRelease testDebugUnitTest assembleDebug bundleRelease
 
       - name: Verify unit tests actually executed
         shell: bash
