@@ -56,7 +56,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          SDK_ROOT="\${ANDROID_SDK_ROOT:-\${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
           SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
@@ -126,7 +126,7 @@ jobs:
 
           target_sdk="$(sed -nE 's/^[[:space:]]*targetSdk[[:space:]]*=[[:space:]]*([0-9]+).*/\1/p' app/build.gradle.kts | head -n 1)"
           if [ -z "$target_sdk" ] || [ "$target_sdk" -lt 36 ]; then
-            echo "::error::Google Play targetSdk gate failed. Found: \${target_sdk:-missing}; required: 36+"
+            echo "::error::Google Play targetSdk gate failed. Found: ${target_sdk:-missing}; required: 36+"
             exit 1
           fi
 
@@ -148,7 +148,7 @@ jobs:
         if: steps.changes.outputs.changed == 'true'
         shell: bash
         env:
-          GH_TOKEN: \${{ github.token }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           branch="autofix/android-autoloop"
