@@ -1,11 +1,13 @@
 package com.quantumdeepcalm.ai
 
+import android.content.ComponentName
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,19 +22,30 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.media3.common.Player
+import androidx.media3.session.MediaController
+import androidx.media3.session.SessionToken
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.quantumdeepcalm.ai.playback.PlaybackService
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -210,6 +223,58 @@ private fun SimpleSectionScreen(title: String, body: String) {
 
 @Composable
 private fun PlayerScreen(onBack: () -> Unit) {
+    val context = LocalContext.current
+    var controller by remember { mutableStateOf<MediaController?>(null) }
+    var isPlaying by remember { mutableStateOf(false) }
+    var statusMessage by remember { mutableStateOf("Connexion au lecteur…") }
+
+    DisposableEffect(context) {
+        var attachedController: MediaController? = null
+        val listener = object : Player.Listener {
+            override fun onIsPlayingChanged(isPlayingNow: Boolean) {
+                isPlaying = isPlayingNow
+                statusMessage = if (isPlayingNow) {
+                    "Lecture en cours • mode hors ligne"
+                } else {
+                    "Prêt • lecture hors ligne"
+                }
+            }
+        }
+
+        val sessionToken = SessionToken(
+            context,
+            ComponentName(context, PlaybackService::class.java),
+        )
+        val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+
+        controllerFuture.addListener(
+            {
+                runCatching { controllerFuture.get() }
+                    .onSuccess { connectedController ->
+                        attachedController = connectedController
+                        connectedController.addListener(listener)
+                        controller = connectedController
+                        isPlaying = connectedController.isPlaying
+                        statusMessage = if (connectedController.isPlaying) {
+                            "Lecture en cours • mode hors ligne"
+                        } else {
+                            "Prêt • lecture hors ligne"
+                        }
+                    }
+                    .onFailure {
+                        statusMessage = "Lecteur indisponible"
+                    }
+            },
+            ContextCompat.getMainExecutor(context),
+        )
+
+        onDispose {
+            attachedController?.removeListener(listener)
+            controller = null
+            MediaController.releaseFuture(controllerFuture)
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -222,9 +287,42 @@ private fun PlayerScreen(onBack: () -> Unit) {
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "Le moteur Media3 / ExoPlayer est maintenant intégré pour la lecture en arrière-plan. Les vrais contenus audio seront raccordés au prochain jalon.",
+            text = "Ambiance calme générée localement. Aucune connexion réseau n’est nécessaire.",
             style = MaterialTheme.typography.bodyLarge,
         )
+        Text(
+            text = statusMessage,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Button(
+                enabled = controller != null,
+                onClick = {
+                    controller?.let { activeController ->
+                        if (activeController.isPlaying) {
+                            activeController.pause()
+                        } else {
+                            activeController.play()
+                        }
+                    }
+                },
+            ) {
+                Text(if (isPlaying) "Pause" else "Lecture")
+            }
+
+            OutlinedButton(
+                enabled = controller != null,
+                onClick = {
+                    controller?.let { activeController ->
+                        activeController.pause()
+                        activeController.seekTo(0)
+                    }
+                },
+            ) {
+                Text("Recommencer")
+            }
+        }
+
         Button(onClick = onBack) {
             Text("Retour")
         }
