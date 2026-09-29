@@ -64,6 +64,16 @@ jobs:
           printf '%s' "$ANDROID_UPLOAD_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
           chmod 600 "$KEYSTORE_PATH"
 
+      - name: Validate upload keystore and alias
+        shell: bash
+        env:
+          ANDROID_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
+          ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+        run: |
+          set -euo pipefail
+          KEYSTORE_PATH="$RUNNER_TEMP/quantum-deep-calm-upload.jks"
+          keytool -list             -keystore "$KEYSTORE_PATH"             -storepass "$ANDROID_UPLOAD_STORE_PASSWORD"             -alias "$ANDROID_UPLOAD_KEY_ALIAS"             >/dev/null
+
       - name: Build signed release bundle
         env:
           ANDROID_KEYSTORE_PATH: ${{ runner.temp }}/quantum-deep-calm-upload.jks
