@@ -61,6 +61,7 @@ class MainActivity : ComponentActivity() {
 private data class CalmSection(
     val title: String,
     val subtitle: String,
+    val status: String,
 )
 
 @Composable
@@ -138,10 +139,26 @@ private fun QuantumDeepCalmApp() {
 @Composable
 private fun HomeScreen(onOpenPlayer: () -> Unit) {
     val sections = listOf(
-        CalmSection("Méditation", "Séances guidées et programmes personnalisés"),
-        CalmSection("Respiration", "Exercices courts pour ralentir et se recentrer"),
-        CalmSection("Sommeil", "Routines du soir, sons et séances d'endormissement"),
-        CalmSection("Concentration", "Sessions conçues pour retrouver une attention stable"),
+        CalmSection(
+            "Méditation",
+            "Le lecteur d’ambiance hors ligne est disponible. Les méditations guidées et programmes personnalisés ne sont pas encore activés.",
+            "Partiellement disponible",
+        ),
+        CalmSection(
+            "Respiration",
+            "Aucun exercice de respiration guidée n’est encore activé dans ce build.",
+            "En préparation",
+        ),
+        CalmSection(
+            "Sommeil",
+            "Les routines, histoires et programmes d’endormissement ne sont pas encore activés.",
+            "En préparation",
+        ),
+        CalmSection(
+            "Concentration",
+            "Aucune session guidée de concentration n’est encore activée dans ce build.",
+            "En préparation",
+        ),
     )
 
     LazyColumn(
@@ -197,6 +214,12 @@ private fun CalmSectionCard(section: CalmSection) {
             Text(
                 text = section.subtitle,
                 style = MaterialTheme.typography.bodyMedium,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = section.status,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
             )
         }
     }
