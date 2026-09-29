@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: android-ci-\${{ github.workflow }}-\${{ github.ref }}
+  group: android-ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -90,7 +90,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          SDK_ROOT="\${ANDROID_SDK_ROOT:-\${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
           SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
           test -n "$SDKMANAGER"
           yes | "$SDKMANAGER" --licenses >/dev/null || true
@@ -107,7 +107,7 @@ jobs:
       - name: Upload debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: quantum-deep-calm-ai-debug-\${{ github.sha }}
+          name: quantum-deep-calm-ai-debug-${{ github.sha }}
           path: '**/build/outputs/apk/debug/*.apk'
           if-no-files-found: error
           retention-days: 14
@@ -115,7 +115,7 @@ jobs:
       - name: Upload release AAB
         uses: actions/upload-artifact@v4
         with:
-          name: quantum-deep-calm-ai-release-bundle-\${{ github.sha }}
+          name: quantum-deep-calm-ai-release-bundle-${{ github.sha }}
           path: '**/build/outputs/bundle/release/*.aab'
           if-no-files-found: error
           retention-days: 14
