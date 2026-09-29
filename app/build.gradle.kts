@@ -30,7 +30,7 @@ android {
     defaultConfig {
         applicationId = "com.quantumdeepcalm.ai"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 37
         versionCode = 2
         versionName = "0.2.0-alpha01"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
