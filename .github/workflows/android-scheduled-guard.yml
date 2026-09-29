@@ -166,7 +166,8 @@ jobs:
         id: changes
         shell: bash
         run: |
-          if git diff --quiet; then
+          set -euo pipefail
+          if [ -z "$(git status --porcelain)" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
