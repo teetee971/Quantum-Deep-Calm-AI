@@ -103,7 +103,20 @@ jobs:
             echo "::error::No release AAB was produced."
             exit 1
           fi
-          jarsigner -verify -strict "$AAB"
+
+          verification_output="$(jarsigner -verify "$AAB" 2>&1)"
+          printf '%s\n' "$verification_output"
+
+          if printf '%s\n' "$verification_output" | grep -Fqi 'jar is unsigned'; then
+            echo "::error::The release AAB is unsigned."
+            exit 1
+          fi
+
+          if ! printf '%s\n' "$verification_output" | grep -Fq 'jar verified.'; then
+            echo "::error::jarsigner did not confirm a valid signature."
+            exit 1
+          fi
+
           echo "SIGNED_AAB=$AAB" >> "$GITHUB_ENV"
 
       - name: Upload signed Play bundle
