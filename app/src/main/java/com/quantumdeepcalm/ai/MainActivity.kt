@@ -113,19 +113,19 @@ private fun QuantumDeepCalmApp() {
             composable(AppNavigationContract.LIBRARY) {
                 SimpleSectionScreen(
                     title = "Bibliothèque",
-                    body = "Les méditations téléchargées, favorites et disponibles hors connexion seront regroupées ici.",
+                    body = "Module en préparation : les téléchargements, favoris et contenus hors connexion ne sont pas encore activés dans ce build.",
                 )
             }
             composable(AppNavigationContract.SLEEP) {
                 SimpleSectionScreen(
                     title = "Sommeil",
-                    body = "Routines du soir, histoires, sons continus et programmes d'endormissement.",
+                    body = "Module en préparation : les routines du soir, histoires et programmes d’endormissement ne sont pas encore activés dans ce build.",
                 )
             }
             composable(AppNavigationContract.PROGRESS) {
                 SimpleSectionScreen(
                     title = "Progression",
-                    body = "Historique, régularité, minutes méditées et objectifs personnels.",
+                    body = "Module en préparation : aucun historique, objectif ou suivi de régularité n’est encore enregistré dans ce build.",
                 )
             }
             composable(AppNavigationContract.PLAYER) {
