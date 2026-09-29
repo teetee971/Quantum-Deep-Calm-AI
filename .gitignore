@@ -1,13 +1,28 @@
-*.iml
+# Gradle / Android
 .gradle/
-.idea/
-local.properties
-.DS_Store
-/build/
-/captures/
-.externalNativeBuild/
-.cxx/
 **/build/
+local.properties
+*.apk
+*.aab
+*.apks
 *.jks
 *.keystore
-keystore.properties
+
+# IDE / OS
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+
+# Local secrets / environment
+.env
+.env.*
+!.env.example
+
+# Logs / temporary
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
