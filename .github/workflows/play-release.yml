@@ -68,6 +68,28 @@ jobs:
       - name: Build signed release bundle
         run: ./gradlew --no-daemon clean lintRelease testDebugUnitTest bundleRelease
 
+      - name: Verify unit tests actually executed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          reports = sorted(Path("app/build/test-results/testDebugUnitTest").glob("TEST-*.xml"))
+          if not reports:
+              raise SystemExit("No JUnit XML reports were produced; refusing a false-green release.")
+
+          executed = sum(
+              int(ET.parse(report).getroot().attrib.get("tests", "0"))
+              for report in reports
+          )
+          if executed <= 0:
+              raise SystemExit("Zero unit tests executed; refusing a false-green release.")
+
+          print(f"Verified {executed} unit test(s) executed before signing.")
+          PY
+
       - name: Verify AAB signature
         shell: bash
         run: |
