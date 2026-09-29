@@ -25,7 +25,8 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.lightColorScheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -66,7 +67,15 @@ private data class CalmSection(
 @Composable
 private fun QuantumDeepCalmTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = lightColorScheme(),
+        colorScheme = darkColorScheme(
+            primary = Color(0xFF35E7F2),
+            onPrimary = Color(0xFF06101B),
+            secondary = Color(0xFF9C6CFF),
+            background = Color(0xFF0A1026),
+            surface = Color(0xFF111A3A),
+            onBackground = Color(0xFFF7F7FF),
+            onSurface = Color(0xFFF7F7FF),
+        ),
         content = content,
     )
 }
@@ -157,7 +166,7 @@ private fun HomeScreen(onOpenPlayer: () -> Unit) {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Application Android native",
+                text = "Respirez. Ralentissez. Retrouvez votre calme.",
                 style = MaterialTheme.typography.bodyLarge,
             )
             Spacer(modifier = Modifier.height(18.dp))
