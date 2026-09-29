@@ -86,6 +86,7 @@ jobs:
           test -f gradle/wrapper/gradle-wrapper.jar
           test -f gradle/wrapper/gradle-wrapper.properties
           grep -F 'gradle-9.6.0-bin.zip' gradle/wrapper/gradle-wrapper.properties
+          grep -F 'distributionSha256Sum=bbaeb2fef8710818cf0e261201dab964c572f92b942812df0c3620d62a529a01' gradle/wrapper/gradle-wrapper.properties
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
