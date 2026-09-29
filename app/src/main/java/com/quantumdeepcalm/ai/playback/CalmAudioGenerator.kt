@@ -64,13 +64,14 @@ internal object CalmAudioGenerator {
         val temporary = File(context.filesDir, "calm_ambience_v1.wav.tmp")
         temporary.writeBytes(bytes)
 
-        if (target.exists() && !target.delete()) {
+        if (target.exists()) {
+            temporary.copyTo(target, overwrite = true)
             temporary.delete()
-            error("Unable to replace the generated calm audio file.")
+            return target
         }
 
         if (!temporary.renameTo(target)) {
-            target.writeBytes(bytes)
+            temporary.copyTo(target, overwrite = true)
             temporary.delete()
         }
 
