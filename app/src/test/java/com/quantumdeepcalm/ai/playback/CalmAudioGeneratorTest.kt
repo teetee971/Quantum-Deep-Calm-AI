@@ -1,6 +1,7 @@
 package com.quantumdeepcalm.ai.playback
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -21,5 +22,23 @@ class CalmAudioGeneratorTest {
     fun generatedWavContainsAudibleNonZeroSamples() {
         val bytes = CalmAudioGenerator.generateWavBytes()
         assertTrue(bytes.drop(44).any { it.toInt() != 0 })
+    }
+
+    @Test
+    fun expectedContentRejectsSameSizeCorruption() {
+        val corrupted = CalmAudioGenerator.generateWavBytes()
+        corrupted[corrupted.lastIndex] = (corrupted.last().toInt() xor 0x01).toByte()
+
+        assertEquals(CalmAudioGenerator.expectedByteSize, corrupted.size)
+        assertFalse(CalmAudioGenerator.hasExpectedContent(corrupted))
+    }
+
+    @Test
+    fun expectedContentAcceptsFreshGeneration() {
+        assertTrue(
+            CalmAudioGenerator.hasExpectedContent(
+                CalmAudioGenerator.generateWavBytes(),
+            ),
+        )
     }
 }
