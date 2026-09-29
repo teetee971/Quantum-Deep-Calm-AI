@@ -11,6 +11,7 @@ internal object AppNavigationContract {
     const val SLEEP = "sleep"
     const val PROGRESS = "progress"
     const val PLAYER = "player"
+    const val PRIVACY = "privacy"
 
     const val START_ROUTE = HOME
 
