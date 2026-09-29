@@ -1,2 +1,3 @@
 # Quantum Deep Calm AI
-# Release shrinking/obfuscation rules will be added when release minification is enabled.
+# Release shrinking is intentionally disabled in app/build.gradle.kts.
+# No app-specific keep rules are required while minification remains disabled.
