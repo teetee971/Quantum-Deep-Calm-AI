@@ -57,6 +57,34 @@ jobs:
       - name: Run managed-device instrumentation smoke
         run: ./gradlew --no-daemon pixel2api35DebugAndroidTest
 
+      - name: Verify instrumentation tests actually executed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          reports = sorted(
+              Path("app/build/outputs/androidTest-results/managedDevice").rglob("TEST-*.xml")
+          )
+          if not reports:
+              raise SystemExit(
+                  "No managed-device JUnit XML reports were produced; refusing a false-green smoke job."
+              )
+
+          executed = sum(
+              int(ET.parse(report).getroot().attrib.get("tests", "0"))
+              for report in reports
+          )
+          if executed <= 0:
+              raise SystemExit(
+                  "Zero managed-device tests executed; refusing a false-green smoke job."
+              )
+
+          print(f"Verified {executed} managed-device test(s) executed.")
+          PY
+
       - name: Upload instrumentation reports
         if: always()
         uses: actions/upload-artifact@v4
