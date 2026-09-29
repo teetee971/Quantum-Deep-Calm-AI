@@ -69,6 +69,12 @@ android {
         compose = true
     }
 
+    lint {
+        abortOnError = true
+        checkReleaseBuilds = true
+        warningsAsErrors = true
+    }
+
     testOptions {
         managedDevices {
             localDevices {
