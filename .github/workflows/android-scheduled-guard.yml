@@ -73,6 +73,12 @@ jobs:
         run: |
           set -euo pipefail
 
+          # Generate the pinned Gradle Wrapper when the repository is missing it.
+          # This is deterministic and makes local/CI builds reproducible.
+          if [ ! -f gradlew ] || [ ! -f gradle/wrapper/gradle-wrapper.jar ] || [ ! -f gradle/wrapper/gradle-wrapper.properties ]; then
+            gradle --no-daemon wrapper --gradle-version 9.6.0 --distribution-type bin
+          fi
+
           # Android Lint applies only fixes it declares safe/available.
           gradle --no-daemon lintFix || true
 
@@ -133,6 +139,28 @@ jobs:
 
       - name: Validate Android project
         run: gradle --no-daemon lintDebug lintRelease testDebugUnitTest assembleDebug bundleRelease
+
+      - name: Verify unit tests actually executed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          reports = sorted(Path("app/build/test-results/testDebugUnitTest").glob("TEST-*.xml"))
+          if not reports:
+              raise SystemExit("No JUnit XML reports were produced; refusing a false-green test job.")
+
+          executed = sum(
+              int(ET.parse(report).getroot().attrib.get("tests", "0"))
+              for report in reports
+          )
+          if executed <= 0:
+              raise SystemExit("Zero unit tests executed; refusing a false-green test job.")
+
+          print(f"Verified {executed} unit test(s) executed.")
+          PY
 
       - name: Detect safe-fix changes
         id: changes
