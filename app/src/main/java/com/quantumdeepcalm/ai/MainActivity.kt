@@ -88,12 +88,25 @@ private fun QuantumDeepCalmApp() {
         )
     }
 
+    val progressRepository = remember(context) {
+        ProgressRepository(context.applicationContext)
+    }
+    var playbackProgress by remember {
+        mutableStateOf(progressRepository.load())
+    }
+
     val toggleFavorite: (String) -> Unit = { sessionId ->
         if (sessionId in SessionCatalog.ids) {
             favoriteIds = favoritesRepository
                 .toggleFavorite(sessionId)
                 .intersect(SessionCatalog.ids)
         }
+    }
+
+    val recordPlaybackStarted: () -> Unit = {
+        playbackProgress = progressRepository.recordSessionStarted(
+            atMs = System.currentTimeMillis(),
+        )
     }
 
     val navController = rememberNavController()
@@ -150,13 +163,13 @@ private fun QuantumDeepCalmApp() {
                 )
             }
             composable(AppNavigationContract.PROGRESS) {
-                SimpleSectionScreen(
-                    title = "Progression",
-                    body = "Module en préparation : aucun historique, objectif ou suivi de régularité n’est encore enregistré dans ce build.",
-                )
+                ProgressScreen(progress = playbackProgress)
             }
             composable(AppNavigationContract.PLAYER) {
-                PlayerScreen(onBack = { navController.popBackStack() })
+                PlayerScreen(
+                    onBack = { navController.popBackStack() },
+                    onPlaybackStarted = recordPlaybackStarted,
+                )
             }
         }
     }
@@ -302,6 +315,48 @@ private fun CalmSessionCard(
 }
 
 @Composable
+private fun ProgressScreen(progress: PlaybackProgress) {
+    val lastStartedLabel = progress.lastStartedAtMs?.let { timestamp ->
+        java.text.DateFormat
+            .getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT)
+            .format(java.util.Date(timestamp))
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = "Progression",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = "Sessions audio démarrées : ${progress.startedSessionCount}",
+            style = MaterialTheme.typography.titleLarge,
+        )
+        Text(
+            text = if (lastStartedLabel == null) {
+                "Aucune lecture confirmée pour le moment."
+            } else {
+                "Dernière lecture confirmée : $lastStartedLabel"
+            },
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        Text(
+            text = "Le compteur augmente uniquement lorsque le lecteur confirme que l’audio a réellement commencé.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            text = "Les objectifs et séries de régularité avancées ne sont pas encore activés.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+    }
+}
+
+@Composable
 private fun SimpleSectionScreen(title: String, body: String) {
     Column(
         modifier = Modifier
@@ -319,11 +374,15 @@ private fun SimpleSectionScreen(title: String, body: String) {
 }
 
 @Composable
-private fun PlayerScreen(onBack: () -> Unit) {
+private fun PlayerScreen(
+    onBack: () -> Unit,
+    onPlaybackStarted: () -> Unit,
+) {
     val context = LocalContext.current
     var controller by remember { mutableStateOf<MediaController?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
     var hasPlaybackError by remember { mutableStateOf(false) }
+    var playbackStartRecorded by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf("Connexion au lecteur…") }
 
     DisposableEffect(context) {
@@ -333,6 +392,10 @@ private fun PlayerScreen(onBack: () -> Unit) {
             override fun onIsPlayingChanged(isPlayingNow: Boolean) {
                 isPlaying = isPlayingNow
                 if (isPlayingNow) {
+                    if (!playbackStartRecorded) {
+                        playbackStartRecorded = true
+                        onPlaybackStarted()
+                    }
                     hasPlaybackError = false
                     statusMessage = "Lecture en cours • mode hors ligne"
                 } else if (hasPlaybackError) {

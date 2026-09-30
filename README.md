@@ -13,6 +13,8 @@ Implémenté dans le build Android actuel :
 - écran d’accueil Quantum Deep Calm avec sessions Calm, Alpha Relaxation, Theta Meditation, Delta Concentration et Schumann ;
 - favoris persistants enregistrés localement sur l’appareil ;
 - bibliothèque affichant les sessions réellement ajoutées aux favoris ;
+- progression persistante basée uniquement sur les démarrages de lecture confirmés par Media3 ;
+- date de dernière lecture confirmée ;
 - lecteur audio Media3 ;
 - ambiance WAV générée localement et lisible hors connexion ;
 - lecture, pause et remise au début de la session ;
@@ -25,7 +27,7 @@ Non encore implémenté dans le produit :
 
 - téléchargements de contenus supplémentaires ;
 - programmes Sommeil ;
-- historique, objectifs et progression ;
+- objectifs, séries de régularité et historique détaillé ;
 - catalogue audio complet avec une piste distincte par session ;
 - publication Google Play certifiée sur appareil réel.
 
@@ -71,7 +73,7 @@ Smoke test Android géré :
 ./gradlew --no-daemon pixel2api35DebugAndroidTest
 ```
 
-Le smoke test vérifie notamment que le lecteur hors ligne se connecte et démarre effectivement la lecture. Les tests instrumentés valident également que les favoris persistent entre deux instances du dépôt local.
+Le smoke test vérifie notamment que le lecteur hors ligne se connecte, démarre effectivement la lecture et alimente l’écran Progression uniquement après confirmation réelle de Media3. Les tests instrumentés valident également la persistance des favoris et des compteurs de progression.
 
 ## CI et contrôles
 
@@ -97,7 +99,7 @@ La configuration Android actuelle :
 - désactive les sauvegardes applicatives automatiques ;
 - interdit le trafic HTTP en clair ;
 - n’intègre aucun secret de signature dans le dépôt ;
-- fournit les secrets de signature de release uniquement via GitHub Actions.
+- fournit les secrets de signature de release uniquement via GitHub Actions et uniquement aux étapes qui en ont besoin.
 
 Le workflow `Play Release Bundle` exige les quatre secrets de signature Android avant de produire un AAB signé. Leur présence n’est pas supposée : le workflow échoue explicitement s’ils manquent.
 
@@ -105,12 +107,14 @@ Le workflow `Play Release Bundle` exige les quatre secrets de signature Android 
 
 Le workflow manuel `Play Release Bundle` :
 
-1. valide la présence des secrets de signature ;
-2. reconstruit le projet proprement ;
-3. exécute Lint et les tests unitaires ;
-4. génère l’AAB release ;
-5. vérifie sa signature avec `jarsigner` ;
-6. publie l’AAB signé comme artefact GitHub Actions.
+1. refuse toute exécution de release signée qui ne provient pas de `main` ;
+2. vérifie que le checkout correspond exactement au SHA de la release ;
+3. valide la présence des secrets de signature sans les exposer aux autres actions du job ;
+4. reconstruit le projet, exécute Lint et les tests unitaires, puis vérifie qu’au moins un test a réellement été exécuté ;
+5. exécute le smoke test sur appareil Android géré avant toute signature ;
+6. décode temporairement le keystore uniquement après les validations ;
+7. génère l’AAB signé et vérifie sa signature avec `jarsigner -verify -strict` ;
+8. publie l’AAB signé comme artefact GitHub Actions puis supprime le keystore décodé du runner.
 
 Un AAB généré par CI ne signifie pas à lui seul que l’application est certifiée « prête production ». La validation finale exige encore les tests réels prévus avant publication.
 
