@@ -11,23 +11,25 @@ Implémenté dans le build Android actuel :
 - interface native Jetpack Compose ;
 - navigation Accueil / Bibliothèque / Sommeil / Progression / Lecteur ;
 - écran d’accueil Quantum Deep Calm avec sessions Calm, Alpha Relaxation, Theta Meditation, Delta Concentration et Schumann ;
+- favoris persistants enregistrés localement sur l’appareil ;
+- bibliothèque affichant les sessions réellement ajoutées aux favoris ;
 - lecteur audio Media3 ;
 - ambiance WAV générée localement et lisible hors connexion ;
 - lecture, pause et remise au début de la session ;
 - tests unitaires et smoke test sur appareil Android géré ;
+- test instrumenté de persistance des favoris ;
 - génération d’APK debug et d’AAB release par CI ;
 - analyse CodeQL, contrôle GitGuardian et politiques de dépôt.
 
 Non encore implémenté dans le produit :
 
-- favoris et bibliothèque persistante ;
-- téléchargements de contenus ;
+- téléchargements de contenus supplémentaires ;
 - programmes Sommeil ;
 - historique, objectifs et progression ;
-- catalogue audio complet ;
+- catalogue audio complet avec une piste distincte par session ;
 - publication Google Play certifiée sur appareil réel.
 
-L’interface affiche ces modules comme « en préparation » afin d’éviter tout faux état fonctionnel.
+L’interface distingue les fonctions opérationnelles des modules encore en préparation afin d’éviter tout faux état fonctionnel.
 
 ## Prérequis
 
@@ -69,7 +71,7 @@ Smoke test Android géré :
 ./gradlew --no-daemon pixel2api35DebugAndroidTest
 ```
 
-Le smoke test vérifie notamment que le lecteur hors ligne se connecte et démarre effectivement la lecture.
+Le smoke test vérifie notamment que le lecteur hors ligne se connecte et démarre effectivement la lecture. Les tests instrumentés valident également que les favoris persistent entre deux instances du dépôt local.
 
 ## CI et contrôles
 
