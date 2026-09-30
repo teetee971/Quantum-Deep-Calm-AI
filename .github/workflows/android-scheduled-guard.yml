@@ -63,10 +63,10 @@ jobs:
           yes | "$SDKMANAGER" --licenses >/dev/null || true
           "$SDKMANAGER" "platforms;android-37.0" "build-tools;37.0.0"
 
-      - name: Set up Gradle 9.6
+      - name: Set up Gradle 9.8
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: '9.6.0'
+          gradle-version: '9.8.0'
 
       - name: Apply deterministic safe fixes
         shell: bash
@@ -76,7 +76,7 @@ jobs:
           # Generate the pinned Gradle Wrapper when the repository is missing it.
           # This is deterministic and makes local/CI builds reproducible.
           if [ ! -f gradlew ] || [ ! -f gradle/wrapper/gradle-wrapper.jar ] || [ ! -f gradle/wrapper/gradle-wrapper.properties ]; then
-            gradle --no-daemon wrapper --gradle-version 9.6.0 --distribution-type bin
+            gradle --no-daemon wrapper --gradle-version 9.8.0 --distribution-type bin
           fi
 
           # Android Lint applies only fixes it declares safe/available.
