@@ -13,6 +13,8 @@ Implémenté dans le build Android actuel :
 - écran d’accueil Quantum Deep Calm avec sessions Calm, Alpha Relaxation, Theta Meditation, Delta Concentration et Schumann ;
 - favoris persistants enregistrés localement sur l’appareil ;
 - bibliothèque affichant les sessions réellement ajoutées aux favoris ;
+- progression persistante basée uniquement sur les démarrages de lecture confirmés par Media3 ;
+- date de dernière lecture confirmée ;
 - lecteur audio Media3 ;
 - ambiance WAV générée localement et lisible hors connexion ;
 - lecture, pause et remise au début de la session ;
@@ -25,7 +27,7 @@ Non encore implémenté dans le produit :
 
 - téléchargements de contenus supplémentaires ;
 - programmes Sommeil ;
-- historique, objectifs et progression ;
+- objectifs, séries de régularité et historique détaillé ;
 - catalogue audio complet avec une piste distincte par session ;
 - publication Google Play certifiée sur appareil réel.
 
@@ -71,7 +73,7 @@ Smoke test Android géré :
 ./gradlew --no-daemon pixel2api35DebugAndroidTest
 ```
 
-Le smoke test vérifie notamment que le lecteur hors ligne se connecte et démarre effectivement la lecture. Les tests instrumentés valident également que les favoris persistent entre deux instances du dépôt local.
+Le smoke test vérifie notamment que le lecteur hors ligne se connecte, démarre effectivement la lecture et alimente l’écran Progression uniquement après confirmation réelle de Media3. Les tests instrumentés valident également la persistance des favoris et des compteurs de progression.
 
 ## CI et contrôles
 
