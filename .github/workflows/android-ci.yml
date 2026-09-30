@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Repository integrity and zero-debt gate
         shell: bash
@@ -72,7 +72,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Detect Android project
         shell: bash
@@ -86,7 +86,7 @@ jobs:
           grep -F 'gradle-9.8.0-bin.zip' gradle/wrapper/gradle-wrapper.properties
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
@@ -134,7 +134,7 @@ jobs:
           PY
 
       - name: Upload debug APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: quantum-deep-calm-ai-debug-${{ github.sha }}
           path: '**/build/outputs/apk/debug/*.apk'
@@ -142,7 +142,7 @@ jobs:
           retention-days: 14
 
       - name: Upload release AAB
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: quantum-deep-calm-ai-release-bundle-${{ github.sha }}
           path: '**/build/outputs/bundle/release/*.aab'
