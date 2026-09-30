@@ -5,6 +5,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
 import org.junit.Test
@@ -53,6 +54,37 @@ class MainActivitySmokeTest {
 
         composeTestRule
             .onNodeWithText("Pause")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun favoriteAddedFromHomeAppearsInLibrary() {
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            composeTestRule
+                .onAllNodesWithText("Ajouter aux favoris")
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        }
+
+        composeTestRule
+            .onAllNodesWithText("Ajouter aux favoris")[0]
+            .performScrollTo()
+            .performClick()
+
+        composeTestRule
+            .onNodeWithText("Bibliothèque")
+            .performClick()
+
+        composeTestRule
+            .onNodeWithText("Vos favoris sont enregistrés localement sur cet appareil.")
+            .assertIsDisplayed()
+
+        composeTestRule
+            .onNodeWithText("Calm")
+            .assertIsDisplayed()
+
+        composeTestRule
+            .onNodeWithText("Retirer des favoris")
             .assertIsDisplayed()
     }
 }
