@@ -26,7 +26,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.ui.graphics.Color
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -34,6 +33,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -60,11 +60,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private data class CalmSection(
-    val title: String,
-    val subtitle: String,
-)
-
 @Composable
 private fun QuantumDeepCalmTheme(content: @Composable () -> Unit) {
     MaterialTheme(
@@ -83,6 +78,24 @@ private fun QuantumDeepCalmTheme(content: @Composable () -> Unit) {
 
 @Composable
 private fun QuantumDeepCalmApp() {
+    val context = LocalContext.current
+    val favoritesRepository = remember(context) {
+        FavoritesRepository(context.applicationContext)
+    }
+    var favoriteIds by remember {
+        mutableStateOf(
+            favoritesRepository.loadFavoriteIds().intersect(SessionCatalog.ids),
+        )
+    }
+
+    val toggleFavorite: (String) -> Unit = { sessionId ->
+        if (sessionId in SessionCatalog.ids) {
+            favoriteIds = favoritesRepository
+                .toggleFavorite(sessionId)
+                .intersect(SessionCatalog.ids)
+        }
+    }
+
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
@@ -118,12 +131,16 @@ private fun QuantumDeepCalmApp() {
             modifier = Modifier.padding(innerPadding),
         ) {
             composable(AppNavigationContract.HOME) {
-                HomeScreen(onOpenPlayer = { navController.navigate(AppNavigationContract.PLAYER) })
+                HomeScreen(
+                    favoriteIds = favoriteIds,
+                    onToggleFavorite = toggleFavorite,
+                    onOpenPlayer = { navController.navigate(AppNavigationContract.PLAYER) },
+                )
             }
             composable(AppNavigationContract.LIBRARY) {
-                SimpleSectionScreen(
-                    title = "Bibliothèque",
-                    body = "Module en préparation : les téléchargements, favoris et contenus hors connexion ne sont pas encore activés dans ce build.",
+                LibraryScreen(
+                    favoriteIds = favoriteIds,
+                    onToggleFavorite = toggleFavorite,
                 )
             }
             composable(AppNavigationContract.SLEEP) {
@@ -146,15 +163,11 @@ private fun QuantumDeepCalmApp() {
 }
 
 @Composable
-private fun HomeScreen(onOpenPlayer: () -> Unit) {
-    val sections = listOf(
-        CalmSection("Calm", "Ambiance locale pour ralentir et retrouver un rythme plus calme"),
-        CalmSection("Alpha Relaxation", "Session de relaxation sonore, sans promesse d’effet neurologique"),
-        CalmSection("Theta Meditation", "Méditation immersive inspirée de l’identité Quantum Deep Calm"),
-        CalmSection("Delta Concentration", "Session audio conçue pour une écoute posée et sans distraction"),
-        CalmSection("Schumann", "Ambiance sonore thématique ; aucune allégation thérapeutique"),
-    )
-
+private fun HomeScreen(
+    favoriteIds: Set<String>,
+    onToggleFavorite: (String) -> Unit,
+    onOpenPlayer: () -> Unit,
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 28.dp),
@@ -181,14 +194,85 @@ private fun HomeScreen(onOpenPlayer: () -> Unit) {
             Spacer(modifier = Modifier.height(12.dp))
         }
 
-        items(sections) { section ->
-            CalmSectionCard(section)
+        items(
+            items = SessionCatalog.sessions,
+            key = { session -> session.id },
+        ) { session ->
+            CalmSessionCard(
+                session = session,
+                isFavorite = session.id in favoriteIds,
+                onToggleFavorite = { onToggleFavorite(session.id) },
+            )
         }
     }
 }
 
 @Composable
-private fun CalmSectionCard(section: CalmSection) {
+private fun LibraryScreen(
+    favoriteIds: Set<String>,
+    onToggleFavorite: (String) -> Unit,
+) {
+    val favoriteSessions = SessionCatalog.sessions.filter { session ->
+        session.id in favoriteIds
+    }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        item {
+            Text(
+                text = "Bibliothèque",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Vos favoris sont enregistrés localement sur cet appareil.",
+                style = MaterialTheme.typography.bodyLarge,
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Les téléchargements de contenus supplémentaires ne sont pas encore activés.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+
+        if (favoriteSessions.isEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(22.dp),
+                ) {
+                    Text(
+                        text = "Aucun favori pour le moment. Ajoutez une session depuis l’accueil.",
+                        modifier = Modifier.padding(20.dp),
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+            }
+        } else {
+            items(
+                items = favoriteSessions,
+                key = { session -> session.id },
+            ) { session ->
+                CalmSessionCard(
+                    session = session,
+                    isFavorite = true,
+                    onToggleFavorite = { onToggleFavorite(session.id) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalmSessionCard(
+    session: CalmSession,
+    isFavorite: Boolean,
+    onToggleFavorite: () -> Unit,
+) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(22.dp),
@@ -200,15 +284,19 @@ private fun CalmSectionCard(section: CalmSection) {
                 .padding(20.dp),
         ) {
             Text(
-                text = section.title,
+                text = session.title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.SemiBold,
             )
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = section.subtitle,
+                text = session.subtitle,
                 style = MaterialTheme.typography.bodyMedium,
             )
+            Spacer(modifier = Modifier.height(14.dp))
+            OutlinedButton(onClick = onToggleFavorite) {
+                Text(if (isFavorite) "Retirer des favoris" else "Ajouter aux favoris")
+            }
         }
     }
 }
