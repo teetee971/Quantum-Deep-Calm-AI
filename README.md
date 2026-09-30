@@ -99,7 +99,7 @@ La configuration Android actuelle :
 - désactive les sauvegardes applicatives automatiques ;
 - interdit le trafic HTTP en clair ;
 - n’intègre aucun secret de signature dans le dépôt ;
-- fournit les secrets de signature de release uniquement via GitHub Actions.
+- fournit les secrets de signature de release uniquement via GitHub Actions et uniquement aux étapes qui en ont besoin.
 
 Le workflow `Play Release Bundle` exige les quatre secrets de signature Android avant de produire un AAB signé. Leur présence n’est pas supposée : le workflow échoue explicitement s’ils manquent.
 
@@ -107,12 +107,14 @@ Le workflow `Play Release Bundle` exige les quatre secrets de signature Android 
 
 Le workflow manuel `Play Release Bundle` :
 
-1. valide la présence des secrets de signature ;
-2. reconstruit le projet proprement ;
-3. exécute Lint et les tests unitaires ;
-4. génère l’AAB release ;
-5. vérifie sa signature avec `jarsigner` ;
-6. publie l’AAB signé comme artefact GitHub Actions.
+1. refuse toute exécution de release signée qui ne provient pas de `main` ;
+2. vérifie que le checkout correspond exactement au SHA de la release ;
+3. valide la présence des secrets de signature sans les exposer aux autres actions du job ;
+4. reconstruit le projet, exécute Lint et les tests unitaires, puis vérifie qu’au moins un test a réellement été exécuté ;
+5. exécute le smoke test sur appareil Android géré avant toute signature ;
+6. décode temporairement le keystore uniquement après les validations ;
+7. génère l’AAB signé et vérifie sa signature avec `jarsigner -verify -strict` ;
+8. publie l’AAB signé comme artefact GitHub Actions puis supprime le keystore décodé du runner.
 
 Un AAB généré par CI ne signifie pas à lui seul que l’application est certifiée « prête production ». La validation finale exige encore les tests réels prévus avant publication.
 
