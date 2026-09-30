@@ -1,9 +1,11 @@
 package com.quantumdeepcalm.ai.playback
 
 import android.net.Uri
+import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
@@ -35,9 +37,17 @@ class PlaybackService : MediaSessionService() {
         mediaSession = MediaSession.Builder(this, player).build()
     }
 
+    @OptIn(markerClass = [UnstableApi::class])
     override fun onGetSession(
         controllerInfo: MediaSession.ControllerInfo,
-    ): MediaSession? = mediaSession
+    ): MediaSession? {
+        val isOwnApp = controllerInfo.packageName == packageName
+        return if (isOwnApp || controllerInfo.isTrusted) {
+            mediaSession
+        } else {
+            null
+        }
+    }
 
     override fun onDestroy() {
         mediaSession?.run {
