@@ -55,6 +55,33 @@ class MainActivitySmokeTest {
         composeTestRule
             .onNodeWithText("Pause")
             .assertIsDisplayed()
+
+        composeTestRule
+            .onNodeWithText("Pause")
+            .performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 10_000) {
+            composeTestRule
+                .onAllNodesWithText("Lecture")
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        }
+
+        composeTestRule
+            .onNodeWithText("Retour")
+            .performClick()
+
+        composeTestRule
+            .onNodeWithText("Progression")
+            .performClick()
+
+        composeTestRule
+            .onNodeWithText("Sessions audio démarrées", substring = true)
+            .assertIsDisplayed()
+
+        composeTestRule
+            .onNodeWithText("Dernière lecture confirmée", substring = true)
+            .assertIsDisplayed()
     }
 
     @Test
