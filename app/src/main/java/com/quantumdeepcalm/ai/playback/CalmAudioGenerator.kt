@@ -54,15 +54,24 @@ internal object CalmAudioGenerator {
         return buffer.array()
     }
 
+    fun hasExpectedContent(candidate: ByteArray): Boolean {
+        return candidate.size == expectedByteSize &&
+            candidate.contentEquals(generateWavBytes())
+    }
+
     fun ensureGeneratedFile(context: Context): File {
         val target = File(context.filesDir, "calm_ambience_v1.wav")
-        if (target.exists() && target.length() == expectedByteSize.toLong()) {
-            return target
+        val expectedBytes = generateWavBytes()
+
+        if (target.exists() && target.length() == expectedBytes.size.toLong()) {
+            val existingBytes = runCatching { target.readBytes() }.getOrNull()
+            if (existingBytes != null && existingBytes.contentEquals(expectedBytes)) {
+                return target
+            }
         }
 
-        val bytes = generateWavBytes()
         val temporary = File(context.filesDir, "calm_ambience_v1.wav.tmp")
-        temporary.writeBytes(bytes)
+        temporary.writeBytes(expectedBytes)
 
         if (target.exists()) {
             temporary.copyTo(target, overwrite = true)
