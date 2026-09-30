@@ -38,6 +38,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
@@ -234,17 +235,41 @@ private fun PlayerScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     var controller by remember { mutableStateOf<MediaController?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
+    var hasPlaybackError by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf("Connexion au lecteur…") }
 
     DisposableEffect(context) {
         var attachedController: MediaController? = null
-        val listener = object : Player.Listener {
+        var disposed = false
+        val playerListener = object : Player.Listener {
             override fun onIsPlayingChanged(isPlayingNow: Boolean) {
                 isPlaying = isPlayingNow
-                statusMessage = if (isPlayingNow) {
-                    "Lecture en cours • mode hors ligne"
+                if (isPlayingNow) {
+                    hasPlaybackError = false
+                    statusMessage = "Lecture en cours • mode hors ligne"
+                } else if (hasPlaybackError) {
+                    statusMessage = "Erreur de lecture"
                 } else {
-                    "Prêt • lecture hors ligne"
+                    statusMessage = "Prêt • lecture hors ligne"
+                }
+            }
+
+            override fun onPlayerError(error: PlaybackException) {
+                isPlaying = false
+                hasPlaybackError = true
+                statusMessage = "Erreur de lecture"
+            }
+        }
+
+        val sessionListener = object : MediaController.Listener {
+            override fun onDisconnected(disconnectedController: MediaController) {
+                if (!disposed) {
+                    attachedController?.removeListener(playerListener)
+                    attachedController = null
+                    controller = null
+                    isPlaying = false
+                    hasPlaybackError = false
+                    statusMessage = "Lecteur déconnecté"
                 }
             }
         }
@@ -253,14 +278,16 @@ private fun PlayerScreen(onBack: () -> Unit) {
             context,
             ComponentName(context, PlaybackService::class.java),
         )
-        val controllerFuture = MediaController.Builder(context, sessionToken).buildAsync()
+        val controllerFuture = MediaController.Builder(context, sessionToken)
+            .setListener(sessionListener)
+            .buildAsync()
 
         controllerFuture.addListener(
             {
                 runCatching { controllerFuture.get() }
                     .onSuccess { connectedController ->
                         attachedController = connectedController
-                        connectedController.addListener(listener)
+                        connectedController.addListener(playerListener)
                         controller = connectedController
                         isPlaying = connectedController.isPlaying
                         statusMessage = if (connectedController.isPlaying) {
@@ -270,6 +297,9 @@ private fun PlayerScreen(onBack: () -> Unit) {
                         }
                     }
                     .onFailure {
+                        controller = null
+                        isPlaying = false
+                        hasPlaybackError = false
                         statusMessage = "Lecteur indisponible"
                     }
             },
@@ -277,7 +307,9 @@ private fun PlayerScreen(onBack: () -> Unit) {
         )
 
         onDispose {
-            attachedController?.removeListener(listener)
+            disposed = true
+            attachedController?.removeListener(playerListener)
+            attachedController = null
             controller = null
             MediaController.releaseFuture(controllerFuture)
         }
@@ -310,6 +342,11 @@ private fun PlayerScreen(onBack: () -> Unit) {
                         if (activeController.isPlaying) {
                             activeController.pause()
                         } else {
+                            if (hasPlaybackError) {
+                                hasPlaybackError = false
+                                statusMessage = "Nouvelle tentative…"
+                                activeController.prepare()
+                            }
                             activeController.play()
                         }
                     }
