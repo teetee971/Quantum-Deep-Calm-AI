@@ -1,6 +1,6 @@
 ## ✅ Checklist de conformité – Pull Request
 
-Merci de valider **chaque point** avant soumission.  
+Merci de valider **chaque point** avant soumission.
 Toute non-conformité peut entraîner le rejet automatique de la PR par la CI.
 
 ---
@@ -48,6 +48,6 @@ Toute non-conformité peut entraîner le rejet automatique de la PR par la CI.
 
 ---
 
-🛡️ **Rappel :**  
-Ce dépôt applique une politique **zéro tolérance** pour les fichiers non conformes.  
+🛡️ **Rappel :**
+Ce dépôt applique une politique **zéro tolérance** pour les fichiers non conformes.
 Toute infraction bloque automatiquement la compilation et le merge.
