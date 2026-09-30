@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Repository integrity and zero-debt gate
         shell: bash
@@ -72,7 +72,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Detect Android project
         shell: bash
@@ -102,9 +102,10 @@ jobs:
           "$SDKMANAGER" "platforms;android-37.0" "build-tools;37.0.0"
 
       - name: Set up Gradle 9.8
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: '9.8.0'
+          cache-provider: basic
 
       - name: Lint, unit tests, debug APK and release AAB
         run: ./gradlew --no-daemon lintDebug lintRelease testDebugUnitTest assembleDebug bundleRelease
