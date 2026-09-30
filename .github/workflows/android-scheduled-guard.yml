@@ -23,6 +23,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Repository integrity
         shell: bash
@@ -184,6 +185,7 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          gh auth setup-git
           git checkout -B "$branch"
           git add -A
           git commit -m "chore(android): apply deterministic autoloop fixes"
