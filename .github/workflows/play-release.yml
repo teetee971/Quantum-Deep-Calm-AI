@@ -17,7 +17,7 @@ jobs:
       ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -36,9 +36,10 @@ jobs:
           "$SDKMANAGER" "platforms;android-37.0" "build-tools;37.0.0"
 
       - name: Set up Gradle 9.8
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: '9.8.0'
+          cache-provider: basic
 
       - name: Validate signing secrets
         shell: bash
