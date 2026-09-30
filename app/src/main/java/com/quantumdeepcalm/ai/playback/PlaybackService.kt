@@ -36,7 +36,7 @@ class PlaybackService : MediaSessionService() {
         mediaSession = MediaSession.Builder(this, player).build()
     }
 
-    @OptIn(UnstableApi::class)
+    @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
     override fun onGetSession(
         controllerInfo: MediaSession.ControllerInfo,
     ): MediaSession? {
