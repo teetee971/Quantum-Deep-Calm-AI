@@ -1,6 +1,7 @@
 package com.quantumdeepcalm.ai
 
 import android.content.Context
+import androidx.core.content.edit
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -28,10 +29,9 @@ class FavoritesRepositoryInstrumentedTest {
             assertFalse("calm" in afterRemove)
             assertTrue(FavoritesRepository(context, preferencesName).loadFavoriteIds().isEmpty())
         } finally {
-            context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
-                .edit()
-                .clear()
-                .commit()
+            context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE).edit(commit = true) {
+                clear()
+            }
         }
     }
 }

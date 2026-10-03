@@ -1,6 +1,7 @@
 package com.quantumdeepcalm.ai
 
 import android.content.ComponentName
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -31,13 +32,17 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
@@ -47,6 +52,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.quantumdeepcalm.ai.playback.CalmAudioGenerator
 import com.quantumdeepcalm.ai.playback.PlaybackService
 
 class MainActivity : ComponentActivity() {
@@ -95,6 +101,11 @@ private fun QuantumDeepCalmApp() {
         mutableStateOf(progressRepository.load())
     }
 
+    val navController = rememberNavController()
+    var selectedSessionId by rememberSaveable {
+        mutableStateOf(SessionCatalog.defaultSession.id)
+    }
+
     val toggleFavorite: (String) -> Unit = { sessionId ->
         if (sessionId in SessionCatalog.ids) {
             favoriteIds = favoritesRepository
@@ -103,13 +114,22 @@ private fun QuantumDeepCalmApp() {
         }
     }
 
-    val recordPlaybackStarted: () -> Unit = {
+    val openSession: (String) -> Unit = { sessionId ->
+        if (sessionId in SessionCatalog.ids) {
+            selectedSessionId = sessionId
+            navController.navigate(AppNavigationContract.PLAYER) {
+                launchSingleTop = true
+            }
+        }
+    }
+
+    val recordPlaybackStarted: (String) -> Unit = { sessionId ->
         playbackProgress = progressRepository.recordSessionStarted(
+            sessionId = sessionId,
             atMs = System.currentTimeMillis(),
         )
     }
 
-    val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val showBottomBar = currentRoute in AppNavigationContract.topLevelDestinations.map { it.route }
@@ -147,29 +167,37 @@ private fun QuantumDeepCalmApp() {
                 HomeScreen(
                     favoriteIds = favoriteIds,
                     onToggleFavorite = toggleFavorite,
-                    onOpenPlayer = { navController.navigate(AppNavigationContract.PLAYER) },
+                    onOpenSession = openSession,
+                    onOpenPrivacy = { navController.navigate(AppNavigationContract.PRIVACY) },
                 )
             }
             composable(AppNavigationContract.LIBRARY) {
                 LibraryScreen(
                     favoriteIds = favoriteIds,
                     onToggleFavorite = toggleFavorite,
+                    onOpenSession = openSession,
                 )
             }
             composable(AppNavigationContract.SLEEP) {
-                SimpleSectionScreen(
-                    title = "Sommeil",
-                    body = "Module en préparation : les routines du soir, histoires et programmes d’endormissement ne sont pas encore activés dans ce build.",
+                SleepScreen(
+                    favoriteIds = favoriteIds,
+                    onToggleFavorite = toggleFavorite,
+                    onOpenSession = openSession,
                 )
             }
             composable(AppNavigationContract.PROGRESS) {
                 ProgressScreen(progress = playbackProgress)
             }
             composable(AppNavigationContract.PLAYER) {
+                val session = SessionCatalog.find(selectedSessionId) ?: SessionCatalog.defaultSession
                 PlayerScreen(
+                    session = session,
                     onBack = { navController.popBackStack() },
-                    onPlaybackStarted = recordPlaybackStarted,
+                    onPlaybackStarted = { recordPlaybackStarted(session.id) },
                 )
+            }
+            composable(AppNavigationContract.PRIVACY) {
+                PrivacyScreen(onBack = { navController.popBackStack() })
             }
         }
     }
@@ -179,7 +207,8 @@ private fun QuantumDeepCalmApp() {
 private fun HomeScreen(
     favoriteIds: Set<String>,
     onToggleFavorite: (String) -> Unit,
-    onOpenPlayer: () -> Unit,
+    onOpenSession: (String) -> Unit,
+    onOpenPrivacy: () -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -194,15 +223,22 @@ private fun HomeScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Respirez. Ralentissez. Retrouvez votre calme.",
+                text = "Cinq ambiances générées sur votre appareil. Aucun compte ni connexion réseau requis.",
                 style = MaterialTheme.typography.bodyLarge,
             )
             Spacer(modifier = Modifier.height(18.dp))
             Button(
-                onClick = onOpenPlayer,
+                onClick = { onOpenSession(SessionCatalog.defaultSession.id) },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Commencer une session")
+                Text("Commencer avec Calm")
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onOpenPrivacy,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Confidentialité")
             }
             Spacer(modifier = Modifier.height(12.dp))
         }
@@ -214,6 +250,7 @@ private fun HomeScreen(
             CalmSessionCard(
                 session = session,
                 isFavorite = session.id in favoriteIds,
+                onOpenSession = { onOpenSession(session.id) },
                 onToggleFavorite = { onToggleFavorite(session.id) },
             )
         }
@@ -224,6 +261,7 @@ private fun HomeScreen(
 private fun LibraryScreen(
     favoriteIds: Set<String>,
     onToggleFavorite: (String) -> Unit,
+    onOpenSession: (String) -> Unit,
 ) {
     val favoriteSessions = SessionCatalog.sessions.filter { session ->
         session.id in favoriteIds
@@ -242,13 +280,8 @@ private fun LibraryScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Vos favoris sont enregistrés localement sur cet appareil.",
+                text = "Vos favoris restent sur cet appareil. Les ambiances sont générées localement : aucun téléchargement n’est nécessaire.",
                 style = MaterialTheme.typography.bodyLarge,
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = "Les téléchargements de contenus supplémentaires ne sont pas encore activés.",
-                style = MaterialTheme.typography.bodyMedium,
             )
         }
 
@@ -273,6 +306,7 @@ private fun LibraryScreen(
                 CalmSessionCard(
                     session = session,
                     isFavorite = true,
+                    onOpenSession = { onOpenSession(session.id) },
                     onToggleFavorite = { onToggleFavorite(session.id) },
                 )
             }
@@ -281,9 +315,48 @@ private fun LibraryScreen(
 }
 
 @Composable
+private fun SleepScreen(
+    favoriteIds: Set<String>,
+    onToggleFavorite: (String) -> Unit,
+    onOpenSession: (String) -> Unit,
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 28.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        item {
+            Text(
+                text = "Sommeil",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Sélection d’ambiances calmes pour la soirée. Aucun effet sur le sommeil n’est garanti.",
+                style = MaterialTheme.typography.bodyLarge,
+            )
+        }
+
+        items(
+            items = SessionCatalog.eveningSessions,
+            key = { session -> session.id },
+        ) { session ->
+            CalmSessionCard(
+                session = session,
+                isFavorite = session.id in favoriteIds,
+                onOpenSession = { onOpenSession(session.id) },
+                onToggleFavorite = { onToggleFavorite(session.id) },
+            )
+        }
+    }
+}
+
+@Composable
 private fun CalmSessionCard(
     session: CalmSession,
     isFavorite: Boolean,
+    onOpenSession: () -> Unit,
     onToggleFavorite: () -> Unit,
 ) {
     Card(
@@ -307,7 +380,19 @@ private fun CalmSessionCard(
                 style = MaterialTheme.typography.bodyMedium,
             )
             Spacer(modifier = Modifier.height(14.dp))
-            OutlinedButton(onClick = onToggleFavorite) {
+            Button(
+                onClick = onOpenSession,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("play-session-${session.id}"),
+            ) {
+                Text("Écouter")
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = onToggleFavorite,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
                 Text(if (isFavorite) "Retirer des favoris" else "Ajouter aux favoris")
             }
         }
@@ -321,6 +406,9 @@ private fun ProgressScreen(progress: PlaybackProgress) {
             .getDateTimeInstance(java.text.DateFormat.MEDIUM, java.text.DateFormat.SHORT)
             .format(java.util.Date(timestamp))
     }
+    val lastSessionTitle = progress.lastSessionId
+        ?.let(SessionCatalog::find)
+        ?.title
 
     Column(
         modifier = Modifier
@@ -338,54 +426,79 @@ private fun ProgressScreen(progress: PlaybackProgress) {
             style = MaterialTheme.typography.titleLarge,
         )
         Text(
-            text = if (lastStartedLabel == null) {
+            text = if (lastStartedLabel == null || lastSessionTitle == null) {
                 "Aucune lecture confirmée pour le moment."
             } else {
-                "Dernière lecture confirmée : $lastStartedLabel"
+                "Dernière lecture confirmée : $lastSessionTitle • $lastStartedLabel"
             },
             style = MaterialTheme.typography.bodyLarge,
         )
         Text(
-            text = "Le compteur augmente uniquement lorsque le lecteur confirme que l’audio a réellement commencé.",
-            style = MaterialTheme.typography.bodyMedium,
-        )
-        Text(
-            text = "Les objectifs et séries de régularité avancées ne sont pas encore activés.",
+            text = "Le compteur augmente uniquement lorsque Media3 confirme que l’audio a réellement commencé.",
             style = MaterialTheme.typography.bodyMedium,
         )
     }
 }
 
 @Composable
-private fun SimpleSectionScreen(title: String, body: String) {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
+private fun PrivacyScreen(onBack: () -> Unit) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(24.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(text = body, style = MaterialTheme.typography.bodyLarge)
+        item {
+            Text(
+                text = "Politique de confidentialité",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        item { Text("Quantum Deep Calm AI fonctionne hors ligne et ne nécessite pas de compte utilisateur.") }
+        item { Text("L’application ne transmet pas vos favoris, votre historique de lecture ou vos préférences hors de votre appareil.") }
+        item { Text("Les favoris et la progression sont stockés localement. Les sauvegardes applicatives Android sont désactivées.") }
+        item { Text("Vous pouvez supprimer ces données en effaçant le stockage de l’application ou en la désinstallant.") }
+        item { Text("Aucun contenu de l’application ne constitue un conseil médical, un diagnostic ou un traitement.") }
+        item {
+            Button(onClick = onBack) {
+                Text("Retour")
+            }
+        }
     }
 }
 
 @Composable
 private fun PlayerScreen(
+    session: CalmSession,
     onBack: () -> Unit,
     onPlaybackStarted: () -> Unit,
 ) {
     val context = LocalContext.current
+    val mediaItem = remember(context, session.id) {
+        val audioFile = CalmAudioGenerator.ensureGeneratedFile(
+            context = context.applicationContext,
+            sessionId = session.id,
+            profile = session.audioProfile,
+        )
+        MediaItem.Builder()
+            .setMediaId(session.id)
+            .setUri(Uri.fromFile(audioFile))
+            .setMediaMetadata(
+                MediaMetadata.Builder()
+                    .setTitle(session.title)
+                    .setArtist("Quantum Deep Calm AI")
+                    .build(),
+            )
+            .build()
+    }
+
     var controller by remember { mutableStateOf<MediaController?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
     var hasPlaybackError by remember { mutableStateOf(false) }
-    var playbackStartRecorded by remember { mutableStateOf(false) }
-    var statusMessage by remember { mutableStateOf("Connexion au lecteur…") }
+    var playbackStartRecorded by remember(session.id) { mutableStateOf(false) }
+    var statusMessage by remember(session.id) { mutableStateOf("Connexion au lecteur…") }
 
-    DisposableEffect(context) {
+    DisposableEffect(context, session.id) {
         var attachedController: MediaController? = null
         var disposed = false
         val playerListener = object : Player.Listener {
@@ -439,13 +552,13 @@ private fun PlayerScreen(
                     .onSuccess { connectedController ->
                         attachedController = connectedController
                         connectedController.addListener(playerListener)
+                        connectedController.pause()
+                        connectedController.setMediaItem(mediaItem)
+                        connectedController.prepare()
                         controller = connectedController
-                        isPlaying = connectedController.isPlaying
-                        statusMessage = if (connectedController.isPlaying) {
-                            "Lecture en cours • mode hors ligne"
-                        } else {
-                            "Prêt • lecture hors ligne"
-                        }
+                        isPlaying = false
+                        hasPlaybackError = false
+                        statusMessage = "Prêt • lecture hors ligne"
                     }
                     .onFailure {
                         controller = null
@@ -478,7 +591,12 @@ private fun PlayerScreen(
             fontWeight = FontWeight.Bold,
         )
         Text(
-            text = "Ambiance calme générée localement. Aucune connexion réseau n’est nécessaire.",
+            text = session.title,
+            style = MaterialTheme.typography.titleLarge,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            text = "Ambiance générée localement. Aucune connexion réseau n’est nécessaire.",
             style = MaterialTheme.typography.bodyLarge,
         )
         Text(
