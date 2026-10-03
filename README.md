@@ -1,6 +1,6 @@
 # Quantum Deep Calm AI
 
-Application Android de méditation et de bien-être, construite en Kotlin avec Jetpack Compose.
+Application Android de méditation et de bien-être, construite en Kotlin avec Jetpack Compose et conçue pour fonctionner hors ligne.
 
 Le dépôt suit une règle stricte : aucune fonctionnalité n’est présentée comme opérationnelle tant qu’elle n’est pas réellement implémentée et validée par les contrôles du projet.
 
@@ -10,28 +10,44 @@ Implémenté dans le build Android actuel :
 
 - interface native Jetpack Compose ;
 - navigation Accueil / Bibliothèque / Sommeil / Progression / Lecteur ;
-- écran d’accueil Quantum Deep Calm avec sessions Calm, Alpha Relaxation, Theta Meditation, Delta Concentration et Schumann ;
+- cinq sessions réellement sélectionnables : Calm, Alpha Relaxation, Theta Meditation, Delta Concentration et Schumann ;
+- un profil audio déterministe distinct pour chaque session, généré localement sans téléchargement ;
+- sélection Sommeil composée de sessions réellement jouables et sans promesse d’effet sur le sommeil ;
 - favoris persistants enregistrés localement sur l’appareil ;
-- bibliothèque affichant les sessions réellement ajoutées aux favoris ;
+- bibliothèque affichant et lançant les sessions réellement ajoutées aux favoris ;
 - progression persistante basée uniquement sur les démarrages de lecture confirmés par Media3 ;
-- date de dernière lecture confirmée ;
-- lecteur audio Media3 ;
-- ambiance WAV générée localement et lisible hors connexion ;
-- lecture, pause et remise au début de la session ;
-- tests unitaires et smoke test sur appareil Android géré ;
-- test instrumenté de persistance des favoris ;
+- mémorisation de la dernière session réellement lue et de sa date ;
+- lecteur audio Media3 avec lecture, pause et remise au début ;
+- politique de confidentialité accessible dans l’application ;
+- aucune permission Internet dans le manifeste Android ;
+- tests unitaires et smoke tests sur appareil Android géré ;
+- tests instrumentés de persistance des favoris et de la progression ;
 - génération d’APK debug et d’AAB release par CI ;
 - analyse CodeQL, contrôle GitGuardian et politiques de dépôt.
 
-Non encore implémenté dans le produit :
+Non encore prouvé hors du dépôt :
 
-- téléchargements de contenus supplémentaires ;
-- programmes Sommeil ;
-- objectifs, séries de régularité et historique détaillé ;
-- catalogue audio complet avec une piste distincte par session ;
-- publication Google Play certifiée sur appareil réel.
+- configuration effective des secrets de signature Google Play ;
+- exécution réussie du workflow manuel `Play Release Bundle` avec la vraie clé d’upload ;
+- validation de l’AAB signé dans Google Play Console ;
+- test physique final sur un téléphone Android réel ;
+- accès production Play Console et éventuelles exigences de test fermé liées au type/date du compte développeur ;
+- protection/ruleset `main` vérifiée et imposée côté GitHub.
 
-L’interface distingue les fonctions opérationnelles des modules encore en préparation afin d’éviter tout faux état fonctionnel.
+Les objectifs avancés, séries de régularité et analyses détaillées ne font pas partie du cœur commercial actuel et ne sont pas présentés comme disponibles.
+
+## Architecture produit
+
+Le produit commercial actuel est volontairement offline-first :
+
+- pas de compte utilisateur ;
+- pas de backend nécessaire au fonctionnement ;
+- pas de téléchargement de catalogue ;
+- pas d’analytics distant ;
+- les fichiers WAV sont générés et contrôlés localement à partir de profils versionnés ;
+- les favoris et la progression restent dans le stockage privé de l’application.
+
+Cette architecture réduit les dépendances réseau et la surface de collecte de données. Toute future fonction réseau devra être traitée comme une évolution explicite avec mise à jour des déclarations de confidentialité et Google Play.
 
 ## Prérequis
 
@@ -73,7 +89,14 @@ Smoke test Android géré :
 ./gradlew --no-daemon pixel2api35DebugAndroidTest
 ```
 
-Le smoke test vérifie notamment que le lecteur hors ligne se connecte, démarre effectivement la lecture et alimente l’écran Progression uniquement après confirmation réelle de Media3. Les tests instrumentés valident également la persistance des favoris et des compteurs de progression.
+Le smoke test couvre notamment :
+
+- connexion réelle au lecteur Media3 ;
+- démarrage effectif d’une session hors ligne ;
+- sélection d’une session de catalogue et affichage du bon contenu dans le lecteur ;
+- parcours Sommeil vers une session jouable ;
+- favori vers Bibliothèque et disponibilité du bouton de lecture ;
+- alimentation de Progression uniquement après confirmation réelle de lecture.
 
 ## CI et contrôles
 
@@ -88,7 +111,9 @@ Les workflows GitHub Actions couvrent :
 - CodeQL Java/Kotlin ;
 - GitGuardian ;
 - contrôle des fichiers interdits ou surdimensionnés ;
-- autoloop Android planifiée pour les corrections déterministes sûres.
+- autoloop Android horaire et post-push sur `main` pour les corrections strictement déterministes.
+
+L’autoloop n’applique pas automatiquement les quick-fixes Android Lint aux sources. Lint reste un gate bloquant : une correction source doit compiler et repasser les tests avant fusion.
 
 Les marqueurs `TODO`, `FIXME`, `HACK` et `XXX` sont refusés dans `app/src/main`.
 
@@ -98,6 +123,8 @@ La configuration Android actuelle :
 
 - désactive les sauvegardes applicatives automatiques ;
 - interdit le trafic HTTP en clair ;
+- n’expose pas le service Media3 hors de l’application ;
+- ne demande pas la permission Internet ;
 - n’intègre aucun secret de signature dans le dépôt ;
 - fournit les secrets de signature de release uniquement via GitHub Actions et uniquement aux étapes qui en ont besoin.
 
@@ -116,16 +143,11 @@ Le workflow manuel `Play Release Bundle` :
 7. génère l’AAB signé et vérifie sa signature avec `jarsigner -verify -strict` ;
 8. publie l’AAB signé comme artefact GitHub Actions puis supprime le keystore décodé du runner.
 
-Un AAB généré par CI ne signifie pas à lui seul que l’application est certifiée « prête production ». La validation finale exige encore les tests réels prévus avant publication.
+Un AAB généré par CI ne signifie pas à lui seul que l’application est certifiée « prête production ». Le statut production exige également les preuves externes listées plus haut.
 
-## Architecture
+## Documentation
 
-Voir `docs/ARCHITECTURE.md` pour les règles de séparation entre :
-
-- code Android exécutable ;
-- automatisation CI/CD ;
-- scripts de maintenance ;
-- médias et contenus externes.
+Voir `docs/ARCHITECTURE.md` pour les règles de séparation entre code Android, automatisation, scripts et contenus.
 
 ## Licence
 
