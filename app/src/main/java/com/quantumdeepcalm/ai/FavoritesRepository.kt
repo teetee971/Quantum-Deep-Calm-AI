@@ -1,6 +1,7 @@
 package com.quantumdeepcalm.ai
 
 import android.content.Context
+import androidx.core.content.edit
 
 internal class FavoritesRepository(
     context: Context,
@@ -20,9 +21,9 @@ internal class FavoritesRepository(
             updated.remove(sessionId)
         }
 
-        preferences.edit()
-            .putStringSet(KEY_FAVORITE_IDS, updated)
-            .apply()
+        preferences.edit {
+            putStringSet(KEY_FAVORITE_IDS, updated)
+        }
 
         return updated.toSet()
     }
