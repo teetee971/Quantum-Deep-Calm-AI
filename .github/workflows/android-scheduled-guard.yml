@@ -1,6 +1,8 @@
 name: Android Autoloop
 
 on:
+  push:
+    branches: [ main ]
   schedule:
     - cron: '17 * * * *'
   workflow_dispatch:
@@ -75,15 +77,12 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Bootstrap only when the versioned wrapper is unexpectedly missing.
           if [ ! -f gradlew ] || [ ! -f gradle/wrapper/gradle-wrapper.jar ] || [ ! -f gradle/wrapper/gradle-wrapper.properties ]; then
             gradle --no-daemon wrapper --gradle-version 9.8.0 --distribution-type bin
           fi
 
-          # Do not run lintFix automatically: Android Lint quick-fixes can change
-          # Kotlin sources after compilation and have previously produced code
-          # that did not compile. Lint remains a strict validation gate below.
-
+          # Intentionally no lintFix here. Lint quick-fixes previously rewrote
+          # compiling Kotlin into invalid source. Lint remains a strict gate.
           python3 - <<'PY'
           from pathlib import Path
 
