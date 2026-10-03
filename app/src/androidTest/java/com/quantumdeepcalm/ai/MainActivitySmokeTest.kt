@@ -123,7 +123,7 @@ class MainActivitySmokeTest {
             .performClick()
 
         composeTestRule
-            .onNodeWithText("Bibliothèque")
+            .onNodeWithText("aucun téléchargement n’est nécessaire", substring = true)
             .assertIsDisplayed()
         composeTestRule
             .onNodeWithText("Calm")
