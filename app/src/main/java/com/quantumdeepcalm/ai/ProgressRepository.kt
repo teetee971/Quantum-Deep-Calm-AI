@@ -1,6 +1,7 @@
 package com.quantumdeepcalm.ai
 
 import android.content.Context
+import androidx.core.content.edit
 
 internal data class PlaybackProgress(
     val startedSessionCount: Int,
@@ -15,35 +16,21 @@ internal class ProgressRepository(
 
     fun load(): PlaybackProgress {
         val count = preferences.getInt(KEY_STARTED_SESSION_COUNT, 0).coerceAtLeast(0)
-        val lastStartedAtMs = preferences
-            .getLong(KEY_LAST_STARTED_AT_MS, 0L)
-            .takeIf { value -> value > 0L }
-
-        return PlaybackProgress(
-            startedSessionCount = count,
-            lastStartedAtMs = lastStartedAtMs,
-        )
+        val lastStartedAtMs = preferences.getLong(KEY_LAST_STARTED_AT_MS, 0L).takeIf { it > 0L }
+        return PlaybackProgress(count, lastStartedAtMs)
     }
 
     fun recordSessionStarted(atMs: Long): PlaybackProgress {
         require(atMs > 0L) { "Session start timestamp must be positive." }
-
         val current = load()
-        val nextCount = if (current.startedSessionCount == Int.MAX_VALUE) {
-            Int.MAX_VALUE
-        } else {
-            current.startedSessionCount + 1
+        val nextCount = if (current.startedSessionCount == Int.MAX_VALUE) Int.MAX_VALUE else current.startedSessionCount + 1
+
+        preferences.edit {
+            putInt(KEY_STARTED_SESSION_COUNT, nextCount)
+            putLong(KEY_LAST_STARTED_AT_MS, atMs)
         }
 
-        preferences.edit()
-            .putInt(KEY_STARTED_SESSION_COUNT, nextCount)
-            .putLong(KEY_LAST_STARTED_AT_MS, atMs)
-            .apply()
-
-        return PlaybackProgress(
-            startedSessionCount = nextCount,
-            lastStartedAtMs = atMs,
-        )
+        return PlaybackProgress(nextCount, atMs)
     }
 
     companion object {
