@@ -123,7 +123,7 @@ La configuration Android actuelle :
 
 - désactive les sauvegardes applicatives automatiques ;
 - interdit le trafic HTTP en clair ;
-- n’expose pas le service Media3 hors de l’application ;
+- expose le `MediaSessionService` comme requis pour les contrôles média système, tout en refusant dans `onGetSession()` les contrôleurs qui ne sont ni l’application elle-même ni reconnus fiables par Media3 ;
 - ne demande pas la permission Internet ;
 - n’intègre aucun secret de signature dans le dépôt ;
 - fournit les secrets de signature de release uniquement via GitHub Actions et uniquement aux étapes qui en ont besoin.
