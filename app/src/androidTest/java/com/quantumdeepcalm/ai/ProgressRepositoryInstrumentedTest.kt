@@ -97,4 +97,31 @@ class ProgressRepositoryInstrumentedTest {
             }
         }
     }
+
+    @Test
+    fun loadRemovesExplicitZeroTimestampAndDependentSessionMetadata() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val preferencesName = "progress-zero-timestamp-test-${System.nanoTime()}"
+        val preferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
+        val repository = ProgressRepository(context, preferencesName)
+
+        try {
+            preferences.edit(commit = true) {
+                putInt("started_session_count", 3)
+                putLong("last_started_at_ms", 0L)
+                putString("last_session_id", "calm")
+            }
+
+            val restored = repository.load()
+            assertEquals(3, restored.startedSessionCount)
+            assertNull(restored.lastStartedAtMs)
+            assertNull(restored.lastSessionId)
+            assertFalse(preferences.contains("last_started_at_ms"))
+            assertFalse(preferences.contains("last_session_id"))
+        } finally {
+            preferences.edit(commit = true) {
+                clear()
+            }
+        }
+    }
 }
