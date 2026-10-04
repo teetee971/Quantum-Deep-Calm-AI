@@ -61,6 +61,7 @@ internal object CalmAudioGenerator {
             candidate.contentEquals(generateWavBytes(profile))
     }
 
+    @Synchronized
     fun ensureGeneratedFile(
         context: Context,
         sessionId: String,
