@@ -5,7 +5,16 @@ internal data class SessionAudioProfile(
     val secondaryHz: Double,
     val accentHz: Double,
     val envelopeDepth: Double,
-)
+) {
+    init {
+        require(primaryHz.isFinite() && primaryHz > 0.0) { "Primary frequency must be finite and positive." }
+        require(secondaryHz.isFinite() && secondaryHz > 0.0) { "Secondary frequency must be finite and positive." }
+        require(accentHz.isFinite() && accentHz > 0.0) { "Accent frequency must be finite and positive." }
+        require(envelopeDepth.isFinite() && envelopeDepth in 0.0..1.0) {
+            "Envelope depth must be finite and between 0 and 1."
+        }
+    }
+}
 
 internal data class CalmSession(
     val id: String,
@@ -13,7 +22,17 @@ internal data class CalmSession(
     val subtitle: String,
     val audioProfile: SessionAudioProfile,
     val suitableForEvening: Boolean,
-)
+) {
+    init {
+        require(SESSION_ID_PATTERN.matches(id)) { "Session id must use lowercase ASCII letters, digits or hyphens." }
+        require(title.isNotBlank()) { "Session title must not be blank." }
+        require(subtitle.isNotBlank()) { "Session subtitle must not be blank." }
+    }
+
+    companion object {
+        private val SESSION_ID_PATTERN = Regex("^[a-z0-9]+(?:-[a-z0-9]+)*$")
+    }
+}
 
 internal object SessionCatalog {
     val sessions: List<CalmSession> = listOf(
@@ -57,6 +76,12 @@ internal object SessionCatalog {
     val defaultSession: CalmSession = sessions.first()
     val ids: Set<String> = sessions.mapTo(linkedSetOf()) { it.id }
     val eveningSessions: List<CalmSession> = sessions.filter { it.suitableForEvening }
+
+    init {
+        require(sessions.isNotEmpty()) { "Session catalog must not be empty." }
+        require(ids.size == sessions.size) { "Session catalog ids must be unique." }
+        require(eveningSessions.isNotEmpty()) { "At least one evening session is required." }
+    }
 
     fun find(sessionId: String): CalmSession? = sessions.firstOrNull { it.id == sessionId }
 }
