@@ -1,10 +1,6 @@
-name: Android Device Smoke
+name: Android Emulator Regression
 
 on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
   schedule:
     - cron: '23 5 * * *'
   workflow_dispatch:
@@ -13,12 +9,12 @@ permissions:
   contents: read
 
 concurrency:
-  group: android-device-smoke-${{ github.ref }}
+  group: android-emulator-regression-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  managed-device-smoke:
-    name: Managed-device player smoke
+  managed-device-regression:
+    name: Managed-device regression (API 35)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -31,9 +27,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if [ -e /dev/kvm ]; then
-            sudo chmod 666 /dev/kvm
+          if [ ! -e /dev/kvm ]; then
+            echo "::error::KVM is unavailable; emulator regression cannot run."
+            exit 1
           fi
+          sudo chmod 666 /dev/kvm
 
       - name: Set up JDK 17
         uses: actions/setup-java@v6
@@ -64,14 +62,14 @@ jobs:
           gradle-version: '9.8.0'
           cache-provider: basic
 
-      - name: Run managed-device instrumentation smoke
+      - name: Run managed-device instrumentation regression
         run: ./gradlew --no-daemon pixel2api35DebugAndroidTest
 
       - name: Upload instrumentation reports
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: android-device-smoke-${{ github.sha }}
+          name: android-emulator-regression-${{ github.sha }}
           path: |
             app/build/outputs/androidTest-results/managedDevice/**
             app/build/reports/androidTests/managedDevice/**
