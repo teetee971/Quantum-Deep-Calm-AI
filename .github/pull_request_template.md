@@ -1,43 +1,39 @@
-## Checklist de conformité – Pull Request
+## Qualification de la Pull Request
 
-Cette checklist doit refléter l’état réel de la PR. Une case cochée signifie qu’une preuve existe dans le code, les tests ou la CI.
+La CI est la source d’autorité pour tout ce qui est objectivement vérifiable par machine. Le propriétaire du dépôt ne doit pas refaire manuellement les contrôles déjà prouvés par les workflows.
 
-### Conformité du dépôt
-- [ ] Aucun fichier Git LFS ni pointeur LFS ajouté.
-- [ ] Aucun fichier interdit, archive, source de design ou média lourd ajouté au dépôt.
-- [ ] Aucun dossier temporaire, historique ou résidu de build versionné.
-- [ ] Aucun marqueur `TODO`, `FIXME`, `HACK` ou `XXX` ajouté dans `app/src/main`.
-- [ ] `git diff --check` est propre.
+### Qualification développeur automatique
 
-### Android et architecture
-- [ ] La PR reste compatible avec la structure Android décrite dans `docs/ARCHITECTURE.md`.
-- [ ] Le Gradle Wrapper versionné est utilisé ; aucune chaîne de build parallèle n’est introduite.
-- [ ] Le `targetSdk` reste conforme au gate Google Play du dépôt.
-- [ ] Les permissions, composants exportés et services Android modifiés ont été revus pour leur surface de sécurité.
-- [ ] Les fonctionnalités non implémentées restent explicitement signalées comme telles dans l’UI et la documentation.
+Le statut **Android developer qualification** doit être vert. Il couvre automatiquement :
 
-### Validation fonctionnelle
-- [ ] Android Lint passe sans baseline ajoutée pour masquer de nouveaux défauts.
-- [ ] Les tests unitaires exécutent au moins un test réel et passent.
-- [ ] L’APK debug est généré.
-- [ ] L’AAB release est généré.
-- [ ] Le smoke test sur appareil Android géré passe si la PR touche au runtime ou à l’UI.
-- [ ] Les changements fonctionnels sont couverts par un test ou par une justification de validation vérifiable.
+- intégrité du dépôt et absence de dette source interdite ;
+- conformité `targetSdk` ;
+- Android Lint debug + release ;
+- tests unitaires avec preuve qu’au moins un test a réellement été exécuté ;
+- génération APK debug ;
+- génération AAB release ;
+- démarrage et parcours fonctionnels instrumentés sur appareil Android émulé géré ;
+- preuve que les tests d’instrumentation ont réellement été exécutés et n’ont ni échec ni erreur.
 
-### Sécurité et qualité
-- [ ] Repo Guard est vert.
-- [ ] CodeQL est vert.
-- [ ] GitGuardian est vert.
-- [ ] Aucun secret, keystore, mot de passe ou jeton n’est ajouté au dépôt.
-- [ ] Aucune suppression globale de contrôle, aucun `lint-baseline.xml` et aucun contournement silencieux n’est introduit.
-- [ ] Toute suppression Lint ciblée est justifiée par une contrainte Android documentée et compensée par une garde équivalente.
+Ces contrôles ne nécessitent **aucune validation manuelle répétée** lorsque la CI est verte.
 
-### Release
-- [ ] La documentation est mise à jour si le comportement, les prérequis ou la procédure de release changent.
-- [ ] Une PR ne déclare pas l’application « prête production » sur la seule base d’un build CI.
-- [ ] Si une release signée est concernée, le workflow `Play Release Bundle` vérifie effectivement la signature de l’AAB.
+### Contrôles complémentaires automatiques
 
-### Validation finale
-- [ ] Tous les checks obligatoires de la PR sont verts.
-- [ ] Aucun état « opérationnel » ou « terminé » n’est revendiqué sans preuve.
-- [ ] La PR peut être fusionnée sans dette connue non documentée.
+Les autres workflows du dépôt restent applicables selon leur périmètre : Repo Guard, CodeQL, contrôles de sécurité et garde de release.
+
+### Validation humaine résiduelle
+
+Ne cocher que lorsqu’un changement touche réellement un élément impossible à qualifier honnêtement sur émulateur :
+
+- [ ] Comportement dépendant d’un appareil physique/OEM explicitement vérifié.
+- [ ] Interaction matérielle non émulable explicitement vérifiée.
+- [ ] Décision éditoriale/commerciale de publication explicitement approuvée.
+- [ ] Release signée : secrets, provenance et signature gérés uniquement par le workflow de release prévu.
+
+Si aucune de ces catégories n’est concernée, aucune validation fonctionnelle manuelle du propriétaire n’est exigée pour la qualification développeur.
+
+### Vérité d’état
+
+- Une CI verte signifie **qualifié développeur**, pas automatiquement « production commerciale publiée ».
+- Un échec de l’émulateur est bloquant jusqu’à correction ou preuve technique qu’il s’agit d’un défaut d’infrastructure du runner.
+- Aucun état « opérationnel », « terminé » ou « prêt production » ne doit être revendiqué sans la preuve correspondant à ce niveau.
