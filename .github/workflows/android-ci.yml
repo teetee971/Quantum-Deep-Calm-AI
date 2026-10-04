@@ -154,3 +154,140 @@ jobs:
           path: '**/build/outputs/bundle/release/*.aab'
           if-no-files-found: error
           retention-days: 14
+
+  emulator-qualification:
+    name: Emulator qualification (API 35)
+    needs: android-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Enable KVM access
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -e /dev/kvm ]; then
+            echo "::error::KVM is unavailable; emulator qualification cannot be trusted on this runner."
+            exit 1
+          fi
+          sudo chmod 666 /dev/kvm
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK and managed-device image
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          test -n "$SDKMANAGER"
+          set +o pipefail
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          set -o pipefail
+          "$SDKMANAGER" \
+            "platform-tools" \
+            "platforms;android-37.0" \
+            "build-tools;37.0.0" \
+            "emulator" \
+            "system-images;android-35;default;x86_64"
+
+      - name: Set up Gradle 9.8
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.8.0'
+          cache-provider: basic
+
+      - name: Run complete managed-device instrumentation suite
+        run: ./gradlew --no-daemon pixel2api35DebugAndroidTest
+
+      - name: Verify instrumentation tests actually executed
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          roots = [
+              Path("app/build/outputs/androidTest-results/managedDevice"),
+              Path("app/build/outputs/androidTest-results/managedDevice/debug"),
+          ]
+          reports = []
+          for root in roots:
+              if root.exists():
+                  reports.extend(root.rglob("TEST-*.xml"))
+
+          unique_reports = sorted(set(reports))
+          if not unique_reports:
+              raise SystemExit("No managed-device JUnit XML reports were produced; refusing false-green emulator qualification.")
+
+          executed = 0
+          failures = 0
+          errors = 0
+          for report in unique_reports:
+              suite = ET.parse(report).getroot()
+              executed += int(suite.attrib.get("tests", "0"))
+              failures += int(suite.attrib.get("failures", "0"))
+              errors += int(suite.attrib.get("errors", "0"))
+
+          if executed <= 0:
+              raise SystemExit("Zero instrumentation tests executed; refusing false-green emulator qualification.")
+          if failures or errors:
+              raise SystemExit(f"Instrumentation reports contain failures={failures}, errors={errors}.")
+
+          print(f"Verified {executed} managed-device instrumentation test(s) executed successfully.")
+          PY
+
+      - name: Upload emulator evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-developer-qualification-${{ github.sha }}
+          path: |
+            app/build/outputs/androidTest-results/managedDevice/**
+            app/build/reports/androidTests/managedDevice/**
+          if-no-files-found: error
+          retention-days: 14
+
+  developer-qualification:
+    name: Android developer qualification
+    if: always()
+    needs:
+      - repository-gate
+      - android-build
+      - emulator-qualification
+    runs-on: ubuntu-latest
+    env:
+      REPOSITORY_RESULT: ${{ needs.repository-gate.result }}
+      BUILD_RESULT: ${{ needs.android-build.result }}
+      EMULATOR_RESULT: ${{ needs.emulator-qualification.result }}
+    steps:
+      - name: Enforce emulator-first qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$REPOSITORY_RESULT" = "success"
+          test "$BUILD_RESULT" = "success"
+          test "$EMULATOR_RESULT" = "success"
+
+          {
+            echo '## Android developer qualification'
+            echo ''
+            echo '- Repository integrity / zero-debt gate: PASS'
+            echo '- Android lint and unit tests: PASS'
+            echo '- Debug APK build: PASS'
+            echo '- Release AAB build: PASS'
+            echo '- Managed Android emulator instrumentation: PASS'
+            echo ''
+            echo 'This is the primary developer qualification boundary.'
+            echo 'Manual owner validation is not required to repeat CI-verifiable checks.'
+            echo 'Physical-device review remains separate for hardware/OEM behavior that an emulator cannot prove.'
+          } >> "$GITHUB_STEP_SUMMARY"
