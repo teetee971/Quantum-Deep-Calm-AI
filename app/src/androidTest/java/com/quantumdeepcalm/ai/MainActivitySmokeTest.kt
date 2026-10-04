@@ -86,6 +86,8 @@ class MainActivitySmokeTest {
 
     @Test
     fun sleepTabOffersRealPlayableEveningSessions() {
+        val firstEveningSession = SessionCatalog.eveningSessions.first()
+
         composeTestRule
             .onNodeWithText("Sommeil")
             .performClick()
@@ -95,12 +97,15 @@ class MainActivitySmokeTest {
             .assertIsDisplayed()
 
         composeTestRule
-            .onNodeWithTag("play-session-theta-meditation")
-            .performScrollTo()
+            .onNodeWithTag("play-session-${firstEveningSession.id}")
+            .assertIsDisplayed()
             .performClick()
 
         composeTestRule
-            .onNodeWithText("Theta Meditation")
+            .onNodeWithText("Lecteur de méditation")
+            .assertIsDisplayed()
+        composeTestRule
+            .onNodeWithText(firstEveningSession.title)
             .assertIsDisplayed()
     }
 
