@@ -14,11 +14,12 @@ Le produit utilise actuellement :
 - `targetSdk = 37` : comportement cible déclaré au système ;
 - `compileSdk = 37` : API utilisée pour compiler l’application.
 
-Le banc de qualification exécute la suite instrumentée sur trois niveaux :
+Le banc de qualification exécute la suite instrumentée sur quatre niveaux :
 
 - **API 26** : plancher réel du produit ;
 - **API 29** : point de contrôle intermédiaire/legacy ;
-- **API 36** : comportement Android moderne proche des appareils actuels.
+- **API 36** : comportement Android moderne ;
+- **API 37** : compatibilité avec la version Android la plus récente ciblée par le projet.
 
 API 24 n’est pas utilisée tant que `minSdk` reste à 26. Tester API 24 serait incohérent : l’application n’est pas censée s’y installer. Si le produit doit officiellement supporter API 24, la baisse de `minSdk` doit faire l’objet d’un changement séparé avec audit de compatibilité et qualification dédiée.
 
@@ -44,7 +45,7 @@ Le job GitHub Actions `Android developer qualification` n’est vert que si les 
    - compilation `compileSdk/targetSdk 37`.
 
 3. `Emulator qualification`
-   - matrice API 26 / 29 / 36 ;
+   - matrice API 26 / 29 / 36 / 37 ;
    - KVM obligatoire ;
    - image Android gérée pour chaque niveau ;
    - exécution de la suite `androidTest` complète sur chaque API ;
@@ -75,7 +76,7 @@ Cette validation physique ne doit pas être transformée en gate générique pou
 ## Niveaux de vérité
 
 - **CI build verte** : le code compile et satisfait les contrôles statiques concernés.
-- **Qualification développeur verte** : build + tests + matrice émulateur API 26/29/36 sont verts.
+- **Qualification développeur verte** : build + tests + matrice émulateur API 26/29/36/37 sont verts.
 - **Validation physique** : complément ciblé lorsqu’un matériel réel est nécessaire.
 - **Release commerciale** : artefact signé et processus de publication explicitement exécuté.
 
