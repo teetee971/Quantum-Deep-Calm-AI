@@ -16,6 +16,7 @@ internal class ProgressRepository(
     private val preferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
 
     fun load(): PlaybackProgress {
+        val hasStoredTimestamp = preferences.contains(KEY_LAST_STARTED_AT_MS)
         val rawCount = preferences.getInt(KEY_STARTED_SESSION_COUNT, 0)
         val rawLastStartedAtMs = preferences.getLong(KEY_LAST_STARTED_AT_MS, 0L)
         val rawLastSessionId = preferences.getString(KEY_LAST_SESSION_ID, null)
@@ -27,7 +28,8 @@ internal class ProgressRepository(
 
         val needsRepair =
             rawCount != count ||
-                (lastStartedAtMs == null && rawLastStartedAtMs != 0L) ||
+                hasStoredTimestamp != (lastStartedAtMs != null) ||
+                (lastStartedAtMs != null && rawLastStartedAtMs != lastStartedAtMs) ||
                 rawLastSessionId != lastSessionId
 
         if (needsRepair) {
