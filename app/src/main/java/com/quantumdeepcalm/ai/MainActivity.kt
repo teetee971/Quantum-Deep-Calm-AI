@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,6 +55,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.quantumdeepcalm.ai.playback.CalmAudioGenerator
 import com.quantumdeepcalm.ai.playback.PlaybackService
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -475,31 +479,57 @@ private fun PlayerScreen(
     onPlaybackStarted: () -> Unit,
 ) {
     val context = LocalContext.current
-    val mediaItem = remember(context, session.id) {
-        val audioFile = CalmAudioGenerator.ensureGeneratedFile(
-            context = context.applicationContext,
-            sessionId = session.id,
-            profile = session.audioProfile,
-        )
-        MediaItem.Builder()
-            .setMediaId(session.id)
-            .setUri(Uri.fromFile(audioFile))
-            .setMediaMetadata(
-                MediaMetadata.Builder()
-                    .setTitle(session.title)
-                    .setArtist("Quantum Deep Calm AI")
-                    .build(),
-            )
-            .build()
-    }
-
     var controller by remember { mutableStateOf<MediaController?>(null) }
     var isPlaying by remember { mutableStateOf(false) }
     var hasPlaybackError by remember { mutableStateOf(false) }
     var playbackStartRecorded by remember(session.id) { mutableStateOf(false) }
-    var statusMessage by remember(session.id) { mutableStateOf("Connexion au lecteur…") }
+    var statusMessage by remember(session.id) { mutableStateOf("Préparation de l’audio…") }
+    var preparedMediaItem by remember(session.id) { mutableStateOf<MediaItem?>(null) }
+    var audioPreparationFailed by remember(session.id) { mutableStateOf(false) }
+    var preparationAttempt by remember(session.id) { mutableStateOf(0) }
 
-    DisposableEffect(context, session.id) {
+    LaunchedEffect(context, session.id, preparationAttempt) {
+        preparedMediaItem = null
+        audioPreparationFailed = false
+        controller = null
+        isPlaying = false
+        hasPlaybackError = false
+        statusMessage = "Préparation de l’audio…"
+
+        try {
+            preparedMediaItem = withContext(Dispatchers.IO) {
+                val audioFile = CalmAudioGenerator.ensureGeneratedFile(
+                    context = context.applicationContext,
+                    sessionId = session.id,
+                    profile = session.audioProfile,
+                )
+                MediaItem.Builder()
+                    .setMediaId(session.id)
+                    .setUri(Uri.fromFile(audioFile))
+                    .setMediaMetadata(
+                        MediaMetadata.Builder()
+                            .setTitle(session.title)
+                            .setArtist("Quantum Deep Calm AI")
+                            .build(),
+                    )
+                    .build()
+            }
+            statusMessage = "Connexion au lecteur…"
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            preparedMediaItem = null
+            audioPreparationFailed = true
+            statusMessage = "Impossible de préparer l’audio local"
+        }
+    }
+
+    DisposableEffect(context, session.id, preparedMediaItem) {
+        val mediaItem = preparedMediaItem
+        if (mediaItem == null) {
+            return@DisposableEffect onDispose { }
+        }
+
         var attachedController: MediaController? = null
         var disposed = false
         val playerListener = object : Player.Listener {
@@ -610,6 +640,14 @@ private fun PlayerScreen(
             text = statusMessage,
             style = MaterialTheme.typography.bodyMedium,
         )
+        if (audioPreparationFailed) {
+            OutlinedButton(
+                onClick = { preparationAttempt += 1 },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Réessayer la préparation")
+            }
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(
                 enabled = controller != null,
