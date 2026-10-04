@@ -10,12 +10,23 @@ internal class FavoritesRepository(
     private val preferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
 
     fun loadFavoriteIds(): Set<String> {
-        return preferences.getStringSet(KEY_FAVORITE_IDS, emptySet())
+        val stored = preferences.getStringSet(KEY_FAVORITE_IDS, emptySet())
             ?.toSet()
             .orEmpty()
+        val valid = stored.intersect(SessionCatalog.ids)
+
+        if (valid != stored) {
+            preferences.edit {
+                putStringSet(KEY_FAVORITE_IDS, valid)
+            }
+        }
+
+        return valid
     }
 
     fun toggleFavorite(sessionId: String): Set<String> {
+        require(sessionId in SessionCatalog.ids) { "Unknown session id." }
+
         val updated = loadFavoriteIds().toMutableSet()
         if (!updated.add(sessionId)) {
             updated.remove(sessionId)
