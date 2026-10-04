@@ -409,6 +409,11 @@ private fun ProgressScreen(progress: PlaybackProgress) {
     val lastSessionTitle = progress.lastSessionId
         ?.let(SessionCatalog::find)
         ?.title
+    val lastPlaybackLabel = when {
+        lastStartedLabel == null -> "Aucune lecture confirmée pour le moment."
+        lastSessionTitle == null -> "Dernière lecture confirmée avant le suivi par session • $lastStartedLabel"
+        else -> "Dernière lecture confirmée : $lastSessionTitle • $lastStartedLabel"
+    }
 
     Column(
         modifier = Modifier
@@ -426,11 +431,7 @@ private fun ProgressScreen(progress: PlaybackProgress) {
             style = MaterialTheme.typography.titleLarge,
         )
         Text(
-            text = if (lastStartedLabel == null || lastSessionTitle == null) {
-                "Aucune lecture confirmée pour le moment."
-            } else {
-                "Dernière lecture confirmée : $lastSessionTitle • $lastStartedLabel"
-            },
+            text = lastPlaybackLabel,
             style = MaterialTheme.typography.bodyLarge,
         )
         Text(
@@ -550,6 +551,9 @@ private fun PlayerScreen(
             {
                 runCatching { controllerFuture.get() }
                     .onSuccess { connectedController ->
+                        if (disposed) {
+                            return@onSuccess
+                        }
                         attachedController = connectedController
                         connectedController.addListener(playerListener)
                         connectedController.pause()
@@ -561,6 +565,9 @@ private fun PlayerScreen(
                         statusMessage = "Prêt • lecture hors ligne"
                     }
                     .onFailure {
+                        if (disposed) {
+                            return@onFailure
+                        }
                         controller = null
                         isPlaying = false
                         hasPlaybackError = false
