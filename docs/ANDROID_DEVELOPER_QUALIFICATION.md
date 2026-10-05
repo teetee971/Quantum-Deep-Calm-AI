@@ -19,7 +19,7 @@ Le banc de qualification exécute la suite instrumentée sur quatre niveaux :
 - **API 26** : plancher réel du produit ;
 - **API 29** : point de contrôle intermédiaire/legacy ;
 - **API 36** : comportement Android moderne ;
-- **API 37** : compatibilité avec la version Android la plus récente ciblée par le projet.
+- **API 37** : compatibilité avec la version Android la plus récente ciblée par le projet, avec pages mémoire 16 KB forcées.
 
 API 24 n’est pas utilisée tant que `minSdk` reste à 26. Tester API 24 serait incohérent : l’application n’est pas censée s’y installer. Si le produit doit officiellement supporter API 24, la baisse de `minSdk` doit faire l’objet d’un changement séparé avec audit de compatibilité et qualification dédiée.
 
@@ -29,6 +29,8 @@ API 24 n’est pas utilisée tant que `minSdk` reste à 26. Tester API 24 serait
 - API 26 / 29 / 36 utilisent les images AOSP x86_64.
 - API 37 utilise l’image Google APIs x86_64 publiée pour Android 17 (`android-37.0`), car l’image `default` n’est pas publiée sous la même forme pour ce niveau.
 - Le provisioning API 37 autorise le canal SDK preview requis par la publication courante de cette image.
+- Le Managed Device API 37 force `FORCE_16KB_PAGES` afin que le test récent couvre aussi la compatibilité mémoire 16 KB.
+- Le harness UI épingle `androidx.test.espresso:espresso-core:3.7.0`, version qui n’utilise plus l’accès réflexif historique à `InputManager.getInstance()` incompatible avec Android 17.
 
 ## Gate principal
 
@@ -55,6 +57,7 @@ Le job GitHub Actions `Android developer qualification` n’est vert que si les 
    - matrice API 26 / 29 / 36 / 37 ;
    - KVM obligatoire ;
    - image Android gérée pour chaque niveau ;
+   - API 37 exécutée avec pages mémoire 16 KB ;
    - exécution de la suite `androidTest` complète sur chaque API ;
    - vérification indépendante des rapports JUnit ;
    - refus du faux vert si zéro test est exécuté ;
