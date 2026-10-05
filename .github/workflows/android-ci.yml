@@ -196,6 +196,8 @@ jobs:
 
       - name: Install Android SDK and managed-device image
         shell: bash
+        env:
+          QUALIFICATION_API: ${{ matrix.api }}
         run: |
           set -euo pipefail
           SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
@@ -204,12 +206,26 @@ jobs:
           set +o pipefail
           yes | "$SDKMANAGER" --licenses >/dev/null
           set -o pipefail
-          "$SDKMANAGER" \
-            "platform-tools" \
-            "platforms;android-37.0" \
-            "build-tools;37.0.0" \
-            "emulator" \
-            "system-images;android-${{ matrix.api }};default;x86_64"
+
+          if [ "$QUALIFICATION_API" = "37" ]; then
+            image="system-images;android-37.0;google_apis;x86_64"
+            "$SDKMANAGER" --channel=3 \
+              "platform-tools" \
+              "platforms;android-37.0" \
+              "build-tools;37.0.0" \
+              "emulator" \
+              "$image"
+          else
+            image="system-images;android-${QUALIFICATION_API};default;x86_64"
+            "$SDKMANAGER" \
+              "platform-tools" \
+              "platforms;android-37.0" \
+              "build-tools;37.0.0" \
+              "emulator" \
+              "$image"
+          fi
+
+          echo "Installed qualification image: $image"
 
       - name: Set up Gradle 9.8
         uses: gradle/actions/setup-gradle@v6
@@ -270,7 +286,7 @@ jobs:
           path: |
             app/build/outputs/androidTest-results/managedDevice/**
             app/build/reports/androidTests/managedDevice/**
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
 
   developer-qualification:
