@@ -98,7 +98,7 @@ android {
                 create("pixel2api37") {
                     device = "Pixel 2"
                     apiLevel = 37
-                    systemImageSource = "aosp"
+                    systemImageSource = "google"
                     testedAbi = "x86_64"
                 }
             }
