@@ -84,27 +84,67 @@ jobs:
             exit 0
           fi
 
-          require_workflow_success() {
+          workflow_state() {
             local workflow_file="$1"
             local workflow_name="$2"
             local status conclusion run_sha
 
             read -r status conclusion run_sha < <(
               gh api "/repos/$repo/actions/workflows/$workflow_file/runs?event=pull_request&head_sha=$HEAD_SHA&per_page=1" \
-                --jq '.workflow_runs[0] | [.status, (.conclusion // ""), .head_sha] | @tsv'
+                --jq 'if (.workflow_runs | length) == 0 then ["", "", ""] else (.workflow_runs[0] | [.status, (.conclusion // ""), .head_sha]) end | @tsv'
             )
 
-            if [ "$run_sha" != "$HEAD_SHA" ] || [ "$status" != "completed" ] || [ "$conclusion" != "success" ]; then
-              echo "$workflow_name is not successful on exact head $HEAD_SHA: status=$status conclusion=$conclusion run_sha=$run_sha"
-              return 1
+            if [ -z "$run_sha" ] || [ "$run_sha" != "$HEAD_SHA" ]; then
+              echo "$workflow_name has no run for exact head $HEAD_SHA yet."
+              return 2
+            fi
+
+            if [ "$status" != "completed" ]; then
+              echo "$workflow_name is still $status on exact head $HEAD_SHA."
+              return 2
+            fi
+
+            if [ "$conclusion" != "success" ]; then
+              echo "$workflow_name completed with conclusion=$conclusion on exact head $HEAD_SHA; auto-merge blocked."
+              return 3
             fi
 
             echo "$workflow_name: success on $HEAD_SHA"
+            return 0
           }
 
-          require_workflow_success "android-ci.yml" "Android CI"
-          require_workflow_success "codeql-android.yml" "CodeQL Android"
-          require_workflow_success "repo-guard.yml" "Repo Guard"
+          check_required_workflow() {
+            local workflow_file="$1"
+            local workflow_name="$2"
+            local rc
+
+            set +e
+            workflow_state "$workflow_file" "$workflow_name"
+            rc=$?
+            set -e
+
+            case "$rc" in
+              0)
+                return 0
+                ;;
+              2)
+                echo "Qualification is not complete yet; this workflow_run is a clean no-op."
+                exit 0
+                ;;
+              3)
+                echo "Qualification contains a failed/non-successful required workflow; merge remains blocked."
+                exit 0
+                ;;
+              *)
+                echo "Unexpected qualification-state error for $workflow_name."
+                exit 1
+                ;;
+            esac
+          }
+
+          check_required_workflow "android-ci.yml" "Android CI"
+          check_required_workflow "codeql-android.yml" "CodeQL Android"
+          check_required_workflow "repo-guard.yml" "Repo Guard"
 
           for attempt in 1 2 3 4 5; do
             mergeable="$(gh api "/repos/$repo/pulls/$pr_number" --jq '.mergeable')"
