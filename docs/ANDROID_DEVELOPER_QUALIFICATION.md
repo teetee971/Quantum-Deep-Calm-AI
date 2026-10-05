@@ -23,6 +23,13 @@ Le banc de qualification exécute la suite instrumentée sur quatre niveaux :
 
 API 24 n’est pas utilisée tant que `minSdk` reste à 26. Tester API 24 serait incohérent : l’application n’est pas censée s’y installer. Si le produit doit officiellement supporter API 24, la baisse de `minSdk` doit faire l’objet d’un changement séparé avec audit de compatibilité et qualification dédiée.
 
+## Particularités du banc
+
+- Gradle Managed Devices bloque par défaut les API 26 et inférieures. Le dépôt active explicitement `android.experimental.testOptions.managedDevices.allowOldApiLevelDevices=true` afin de tester le plancher produit API 26 au lieu de le contourner.
+- API 26 / 29 / 36 utilisent les images AOSP x86_64.
+- API 37 utilise l’image Google APIs x86_64 publiée pour Android 17 (`android-37.0`), car l’image `default` n’est pas publiée sous la même forme pour ce niveau.
+- Le provisioning API 37 autorise le canal SDK preview requis par la publication courante de cette image.
+
 ## Gate principal
 
 Le job GitHub Actions `Android developer qualification` n’est vert que si les trois niveaux suivants sont verts :
@@ -52,7 +59,7 @@ Le job GitHub Actions `Android developer qualification` n’est vert que si les 
    - vérification indépendante des rapports JUnit ;
    - refus du faux vert si zéro test est exécuté ;
    - échec global si une seule API échoue ;
-   - conservation des rapports d’instrumentation comme artefacts de preuve.
+   - conservation des rapports d’instrumentation comme artefacts de preuve lorsqu’ils existent.
 
 ## Ce que l’émulateur qualifie actuellement
 
