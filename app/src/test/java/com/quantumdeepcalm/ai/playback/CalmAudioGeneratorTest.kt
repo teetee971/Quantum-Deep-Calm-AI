@@ -1,6 +1,9 @@
 package com.quantumdeepcalm.ai.playback
 
 import com.quantumdeepcalm.ai.SessionCatalog
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import kotlin.math.abs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -25,6 +28,31 @@ class CalmAudioGeneratorTest {
     fun generatedWavContainsAudibleNonZeroSamples() {
         val bytes = CalmAudioGenerator.generateWavBytes(defaultProfile)
         assertTrue(bytes.drop(44).any { it.toInt() != 0 })
+    }
+
+    @Test
+    fun everyCatalogSessionKeepsAHealthyPeakWithoutClipping() {
+        SessionCatalog.sessions.forEach { session ->
+            val bytes = CalmAudioGenerator.generateWavBytes(session.audioProfile)
+            val pcm = ByteBuffer
+                .wrap(bytes, 44, bytes.size - 44)
+                .order(ByteOrder.LITTLE_ENDIAN)
+            var peak = 0
+
+            while (pcm.remaining() >= 2) {
+                peak = maxOf(peak, abs(pcm.short.toInt()))
+            }
+
+            val normalizedPeak = peak.toDouble() / Short.MAX_VALUE.toDouble()
+            assertTrue(
+                "${session.id} output peak is too low: $normalizedPeak",
+                normalizedPeak >= 0.25,
+            )
+            assertTrue(
+                "${session.id} output peak leaves insufficient clipping headroom: $normalizedPeak",
+                normalizedPeak < 0.95,
+            )
+        }
     }
 
     @Test
