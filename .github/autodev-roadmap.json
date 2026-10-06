@@ -1,0 +1,170 @@
+{
+  "version": 1,
+  "product": "Quantum Deep Calm AI",
+  "policy": {
+    "max_parallel_product_items": 1,
+    "require_emulator_qualification": true,
+    "require_codeql": true,
+    "require_repo_guard": true,
+    "auto_merge_safe_product_changes": true,
+    "never_auto_merge_sensitive_paths": true
+  },
+  "items": [
+    {
+      "id": "QDC-000",
+      "priority": 0,
+      "state": "done",
+      "title": "Corriger le niveau de sortie audio mobile",
+      "acceptance": [
+        "Le gain PCM n'est plus anormalement faible sur haut-parleur de smartphone.",
+        "Un test automatique empêche une régression vers un niveau sonore trop bas.",
+        "Android CI, émulateur, Repo Guard et CodeQL restent verts."
+      ]
+    },
+    {
+      "id": "QDC-001",
+      "priority": 1,
+      "state": "ready",
+      "title": "Moteur audio continu multipistes",
+      "acceptance": [
+        "Remplacer la dépendance produit aux boucles WAV courtes par un moteur capable de produire une écoute continue.",
+        "Permettre plusieurs couches audio internes avec niveaux indépendants sans clipping.",
+        "Le moteur reste local-first et fonctionne sans permission Internet.",
+        "Ajouter des tests unitaires sur déterminisme, bornes de niveau et absence d'écrêtage.",
+        "Le parcours lecture actuel reste compatible et passe l'émulation Android."
+      ]
+    },
+    {
+      "id": "QDC-002",
+      "priority": 2,
+      "state": "ready",
+      "title": "Smart Mix, fondus et minuteur",
+      "acceptance": [
+        "Faire évoluer lentement les couches du mix sans coupure audible brutale.",
+        "Ajouter un minuteur d'arrêt avec fondu de sortie.",
+        "Garantir pause, reprise et arrêt propres en arrière-plan.",
+        "Tester les transitions et l'état du minuteur."
+      ]
+    },
+    {
+      "id": "QDC-003",
+      "priority": 3,
+      "state": "ready",
+      "title": "Lecteur audio commercial complet",
+      "acceptance": [
+        "Afficher temps écoulé, temps restant et progression réelle.",
+        "Ajouter réglage de volume applicatif et contrôle d'intensité sans masquer le volume système.",
+        "Gérer les interruptions audio, le verrouillage écran et la reprise.",
+        "Conserver des états de lecture véridiques et testés."
+      ]
+    },
+    {
+      "id": "QDC-004",
+      "priority": 4,
+      "state": "ready",
+      "title": "Accueil par intentions Calme Sommeil Focus Respirer",
+      "acceptance": [
+        "Remplacer l'accueil de catalogue par quatre intentions principales immédiatement compréhensibles.",
+        "Permettre de démarrer une expérience utile en deux actions maximum.",
+        "Conserver l'accès à la bibliothèque et à la progression.",
+        "Valider l'ergonomie par tests Compose et émulation."
+      ]
+    },
+    {
+      "id": "QDC-005",
+      "priority": 5,
+      "state": "ready",
+      "title": "Reprise instantanée de séance",
+      "acceptance": [
+        "Mémoriser la séance, la position et la configuration nécessaires à une reprise cohérente.",
+        "Proposer Reprendre seulement lorsqu'une reprise réelle est possible.",
+        "Ne jamais afficher de faux état de progression.",
+        "Couvrir fermeture, relance et reprise par tests."
+      ]
+    },
+    {
+      "id": "QDC-006",
+      "priority": 6,
+      "state": "ready",
+      "title": "Session Composer local",
+      "acceptance": [
+        "Composer une séance à partir de l'intention, de la durée, de l'intensité et des préférences audio.",
+        "Fonctionner intégralement hors ligne pour le cœur de composition.",
+        "Éviter toute allégation médicale ou physiologique.",
+        "Garantir qu'une configuration invalide échoue explicitement plutôt que de produire un faux résultat."
+      ]
+    },
+    {
+      "id": "QDC-007",
+      "priority": 7,
+      "state": "ready",
+      "title": "Moteur adaptatif local",
+      "acceptance": [
+        "Adapter progressivement l'expérience selon heure locale, intention, durée et préférences explicitement fournies.",
+        "Ne pas exiger de localisation ni de donnée de santé pour la V1.",
+        "Rendre l'adaptation déterministe et testable pour une entrée donnée.",
+        "Préserver le fonctionnement hors ligne."
+      ]
+    },
+    {
+      "id": "QDC-008",
+      "priority": 8,
+      "state": "ready",
+      "title": "Respiration guidée avec haptique",
+      "acceptance": [
+        "Fournir des cycles relaxation, 4-6, box breathing et personnalisé.",
+        "Synchroniser animation, haptique et chronométrage sans dérive notable.",
+        "Permettre de désactiver animations et vibrations.",
+        "Inclure les garde-fous d'accessibilité et de photosensibilité."
+      ]
+    },
+    {
+      "id": "QDC-009",
+      "priority": 9,
+      "state": "ready",
+      "title": "Refonte UX UI premium",
+      "acceptance": [
+        "Appliquer l'identité sombre premium Quantum Deep Calm de façon cohérente.",
+        "Améliorer hiérarchie, lisibilité, états actifs et accessibilité.",
+        "Tester grands textes Android et navigation essentielle.",
+        "Ne pas dégrader les performances ni les parcours existants."
+      ]
+    },
+    {
+      "id": "QDC-010",
+      "priority": 10,
+      "state": "ready",
+      "title": "Widget Android et progression enrichie",
+      "acceptance": [
+        "Exposer des raccourcis réellement fonctionnels vers Calme, Sommeil ou Reprendre.",
+        "Enrichir la progression uniquement à partir d'événements d'usage confirmés.",
+        "Ne pas introduire de gamification culpabilisante.",
+        "Tester le comportement widget et les migrations de données locales."
+      ]
+    },
+    {
+      "id": "QDC-011",
+      "priority": 11,
+      "state": "blocked",
+      "title": "Quantum Guide IA conversationnel",
+      "acceptance": [
+        "Passer d'abord une revue confidentialité, sécurité, coûts et Data Safety.",
+        "Limiter le rôle à la personnalisation de bien-être et à la sélection de séance.",
+        "Aucune fonction de diagnostic, traitement ou substitution à un professionnel.",
+        "Prévoir un comportement utile lorsque le réseau ou le service IA est indisponible."
+      ]
+    },
+    {
+      "id": "QDC-012",
+      "priority": 12,
+      "state": "blocked",
+      "title": "Cloud Premium wearables et synchronisation",
+      "acceptance": [
+        "Passer une revue architecture réseau et confidentialité avant toute permission ou SDK supplémentaire.",
+        "Garder le cœur audio utilisable hors ligne.",
+        "Synchroniser uniquement les données explicitement nécessaires.",
+        "Mettre à jour politique de confidentialité et déclarations Google Play avant publication."
+      ]
+    }
+  ]
+}

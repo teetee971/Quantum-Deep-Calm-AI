@@ -1,0 +1,246 @@
+name: Autodev Merge Controller
+
+on:
+  schedule:
+    - cron: '7,27,47 * * * *'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  checks: read
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: autodev-merge-controller
+  cancel-in-progress: false
+
+jobs:
+  merge-safe-autodev-pr:
+    name: Merge qualified safe AUTODEV PR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Evaluate oldest AUTODEV pull request
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+          from pathlib import Path
+
+          repo = os.environ['GH_REPO']
+          summary = Path(os.environ['GITHUB_STEP_SUMMARY'])
+
+          def run(args, check=True):
+              return subprocess.run(
+                  args,
+                  check=check,
+                  text=True,
+                  stdout=subprocess.PIPE,
+                  stderr=subprocess.PIPE,
+              )
+
+          prs_raw = run([
+              'gh', 'pr', 'list', '--repo', repo, '--base', 'main', '--state', 'open',
+              '--limit', '100', '--json',
+              'number,title,headRefName,headRefOid,isDraft,mergeStateStatus,createdAt,url'
+          ]).stdout
+          prs = json.loads(prs_raw or '[]')
+
+          candidates = [
+              pr for pr in prs
+              if pr['headRefName'].startswith('autodev/')
+              and re.match(r'^\[AUTODEV QDC-\d+\]', pr['title'])
+              and not pr['isDraft']
+          ]
+          candidates.sort(key=lambda pr: pr['createdAt'])
+
+          if not candidates:
+              summary.write_text('## AUTODEV merge controller\n\nNo eligible AUTODEV PR is open.\n', encoding='utf-8')
+              print('No eligible AUTODEV PR is open.')
+              raise SystemExit(0)
+
+          pr = candidates[0]
+          number = pr['number']
+          title = pr['title']
+          match = re.match(r'^\[AUTODEV (QDC-\d+)\]', title)
+          item_id = match.group(1)
+
+          files_result = run([
+              'gh', 'api', '--paginate', f'repos/{repo}/pulls/{number}/files',
+              '--jq', '.[].filename'
+          ])
+          changed_files = [line.strip() for line in files_result.stdout.splitlines() if line.strip()]
+
+          sensitive_exact = {
+              'gradle/libs.versions.toml',
+              'build.gradle.kts',
+              'app/build.gradle.kts',
+              'gradle.properties',
+              'app/src/main/AndroidManifest.xml',
+          }
+          sensitive_prefixes = (
+              '.github/workflows/',
+              '.github/actions/',
+              'gradle/wrapper/',
+          )
+          sensitive_fragments = (
+              'network_security',
+              'keystore',
+              'signing',
+              'play-release',
+              'privacy',
+          )
+
+          sensitive = []
+          for path in changed_files:
+              lowered = path.lower()
+              if (
+                  path in sensitive_exact
+                  or path.startswith(sensitive_prefixes)
+                  or any(fragment in lowered for fragment in sensitive_fragments)
+              ):
+                  sensitive.append(path)
+
+          if sensitive:
+              body = '\n'.join(f'- `{path}`' for path in sensitive)
+              summary.write_text(
+                  '## AUTODEV merge controller\n\n'
+                  f'PR #{number} passed naming checks but touches sensitive paths. Auto-merge is disabled.\n\n{body}\n',
+                  encoding='utf-8',
+              )
+              print(f'PR #{number} touches sensitive paths; refusing auto-merge.')
+              raise SystemExit(0)
+
+          checks_proc = run([
+              'gh', 'pr', 'checks', str(number), '--repo', repo,
+              '--json', 'name,state,bucket,link'
+          ], check=False)
+          if checks_proc.returncode not in (0, 1):
+              print(checks_proc.stderr)
+              raise SystemExit('Unable to read PR checks safely.')
+
+          checks = json.loads(checks_proc.stdout or '[]')
+          if not checks:
+              summary.write_text(
+                  f'## AUTODEV merge controller\n\nPR #{number} has no visible checks yet. Waiting.\n',
+                  encoding='utf-8',
+              )
+              raise SystemExit(0)
+
+          required = {
+              'Android developer qualification',
+              'CodeQL Java/Kotlin',
+              'repository-policy',
+          }
+          by_name = {}
+          for check in checks:
+              by_name.setdefault(check['name'], []).append(check)
+
+          missing = sorted(name for name in required if name not in by_name)
+          if missing:
+              summary.write_text(
+                  '## AUTODEV merge controller\n\n'
+                  f'PR #{number} is waiting for required checks: {", ".join(missing)}.\n',
+                  encoding='utf-8',
+              )
+              raise SystemExit(0)
+
+          non_pass_required = []
+          for name in required:
+              if not any(check.get('bucket') == 'pass' for check in by_name[name]):
+                  non_pass_required.append(name)
+          if non_pass_required:
+              summary.write_text(
+                  '## AUTODEV merge controller\n\n'
+                  f'PR #{number} is not qualified yet: {", ".join(non_pass_required)}.\n',
+                  encoding='utf-8',
+              )
+              raise SystemExit(0)
+
+          failed = [
+              check for check in checks
+              if check.get('bucket') in {'fail', 'cancel'}
+          ]
+          pending = [
+              check for check in checks
+              if check.get('bucket') in {'pending'}
+          ]
+
+          if failed:
+              names = ', '.join(sorted({check['name'] for check in failed}))
+              summary.write_text(
+                  f'## AUTODEV merge controller\n\nPR #{number} has failing/cancelled checks: {names}. No merge.\n',
+                  encoding='utf-8',
+              )
+              raise SystemExit(0)
+
+          if pending:
+              names = ', '.join(sorted({check['name'] for check in pending}))
+              summary.write_text(
+                  f'## AUTODEV merge controller\n\nPR #{number} still has pending checks: {names}. Waiting.\n',
+                  encoding='utf-8',
+              )
+              raise SystemExit(0)
+
+          refreshed = json.loads(run([
+              'gh', 'pr', 'view', str(number), '--repo', repo,
+              '--json', 'mergeStateStatus,headRefOid,url'
+          ]).stdout)
+
+          if refreshed['headRefOid'] != pr['headRefOid']:
+              summary.write_text(
+                  f'## AUTODEV merge controller\n\nPR #{number} changed during evaluation. Refusing stale merge.\n',
+                  encoding='utf-8',
+              )
+              raise SystemExit(0)
+
+          if refreshed['mergeStateStatus'] not in {'CLEAN', 'HAS_HOOKS', 'UNSTABLE'}:
+              summary.write_text(
+                  f"## AUTODEV merge controller\n\nPR #{number} merge state is `{refreshed['mergeStateStatus']}`. No merge.\n",
+                  encoding='utf-8',
+              )
+              raise SystemExit(0)
+
+          merge = run([
+              'gh', 'pr', 'merge', str(number), '--repo', repo,
+              '--squash', '--delete-branch',
+              '--subject', title,
+          ], check=False)
+
+          if merge.returncode != 0:
+              summary.write_text(
+                  '## AUTODEV merge controller\n\n'
+                  f'PR #{number} satisfied the AUTODEV gates but GitHub refused the merge. '
+                  'Branch protection or another repository rule remains authoritative.\n',
+                  encoding='utf-8',
+              )
+              print(merge.stderr)
+              raise SystemExit(0)
+
+          issues = json.loads(run([
+              'gh', 'issue', 'list', '--repo', repo, '--state', 'open', '--limit', '200',
+              '--json', 'number,title,url'
+          ]).stdout or '[]')
+          issue = next((issue for issue in issues if issue['title'].startswith(f'[AUTODEV {item_id}]')), None)
+          if issue:
+              run([
+                  'gh', 'issue', 'close', str(issue['number']), '--repo', repo,
+                  '--comment', f'Closed automatically after qualified merge of PR #{number}.'
+              ], check=False)
+
+          summary.write_text(
+              '## AUTODEV merge controller\n\n'
+              f'Merged PR #{number}: {refreshed["url"]}\n\n'
+              f'Roadmap item `{item_id}` can now advance.\n',
+              encoding='utf-8',
+          )
+          print(f'Merged qualified safe AUTODEV PR #{number}.')
+          PY
