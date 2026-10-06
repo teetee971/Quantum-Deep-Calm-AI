@@ -7,13 +7,13 @@ La CI est la source d’autorité pour tout ce qui est objectivement vérifiable
 Le statut **Android developer qualification** doit être vert. Il couvre automatiquement :
 
 - intégrité du dépôt et absence de dette source interdite ;
-- conformité `targetSdk` ;
+- conformité `minSdk` / `targetSdk` ;
 - Android Lint debug + release ;
 - tests unitaires avec preuve qu’au moins un test a réellement été exécuté ;
 - génération APK debug ;
 - génération AAB release ;
-- démarrage et parcours fonctionnels instrumentés sur appareil Android émulé géré ;
-- preuve que les tests d’instrumentation ont réellement été exécutés et n’ont ni échec ni erreur.
+- démarrage et parcours fonctionnels instrumentés sur appareils Android émulés gérés **API 26 / 29 / 36 / 37** ;
+- preuve que les tests d’instrumentation ont réellement été exécutés et n’ont ni échec ni erreur sur chaque API.
 
 Ces contrôles ne nécessitent **aucune validation manuelle répétée** lorsque la CI est verte.
 
@@ -35,5 +35,5 @@ Si aucune de ces catégories n’est concernée, aucune validation fonctionnelle
 ### Vérité d’état
 
 - Une CI verte signifie **qualifié développeur**, pas automatiquement « production commerciale publiée ».
-- Un échec de l’émulateur est bloquant jusqu’à correction ou preuve technique qu’il s’agit d’un défaut d’infrastructure du runner.
+- Un échec sur une seule API de la matrice 26/29/36/37 est bloquant jusqu’à correction ou preuve technique qu’il s’agit d’un défaut d’infrastructure du runner.
 - Aucun état « opérationnel », « terminé » ou « prêt production » ne doit être revendiqué sans la preuve correspondant à ce niveau.

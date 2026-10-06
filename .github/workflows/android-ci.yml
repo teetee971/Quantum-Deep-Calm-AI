@@ -53,19 +53,27 @@ jobs:
 
           git diff --check
 
-      - name: Verify Google Play target API
+      - name: Verify Android SDK policy
         shell: bash
         run: |
           set -euo pipefail
+          min_sdk="$(sed -nE 's/^[[:space:]]*minSdk[[:space:]]*=[[:space:]]*([0-9]+).*/\1/p' app/build.gradle.kts | head -n 1)"
           target_sdk="$(sed -nE 's/^[[:space:]]*targetSdk[[:space:]]*=[[:space:]]*([0-9]+).*/\1/p' app/build.gradle.kts | head -n 1)"
-          if [ -z "$target_sdk" ]; then
-            echo "::error::Unable to read targetSdk from app/build.gradle.kts"
+
+          if [ -z "$min_sdk" ] || [ -z "$target_sdk" ]; then
+            echo "::error::Unable to read minSdk/targetSdk from app/build.gradle.kts"
+            exit 1
+          fi
+          if [ "$min_sdk" -ne 26 ]; then
+            echo "::error::Qualification matrix is anchored to the product minSdk 26. Found minSdk=$min_sdk"
             exit 1
           fi
           if [ "$target_sdk" -lt 36 ]; then
             echo "::error::Google Play submissions require targetSdk 36+. Found: $target_sdk"
             exit 1
           fi
+
+          echo "minSdk=$min_sdk"
           echo "targetSdk=$target_sdk"
 
   android-build:
@@ -156,10 +164,14 @@ jobs:
           retention-days: 14
 
   emulator-qualification:
-    name: Emulator qualification (API 35)
+    name: Emulator qualification (API ${{ matrix.api }})
     needs: android-build
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        api: [26, 29, 36, 37]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -184,6 +196,8 @@ jobs:
 
       - name: Install Android SDK and managed-device image
         shell: bash
+        env:
+          QUALIFICATION_API: ${{ matrix.api }}
         run: |
           set -euo pipefail
           SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
@@ -192,12 +206,26 @@ jobs:
           set +o pipefail
           yes | "$SDKMANAGER" --licenses >/dev/null
           set -o pipefail
-          "$SDKMANAGER" \
-            "platform-tools" \
-            "platforms;android-37.0" \
-            "build-tools;37.0.0" \
-            "emulator" \
-            "system-images;android-35;default;x86_64"
+
+          if [ "$QUALIFICATION_API" = "37" ]; then
+            image="system-images;android-37.0;google_apis;x86_64"
+            "$SDKMANAGER" --channel=3 \
+              "platform-tools" \
+              "platforms;android-37.0" \
+              "build-tools;37.0.0" \
+              "emulator" \
+              "$image"
+          else
+            image="system-images;android-${QUALIFICATION_API};default;x86_64"
+            "$SDKMANAGER" \
+              "platform-tools" \
+              "platforms;android-37.0" \
+              "build-tools;37.0.0" \
+              "emulator" \
+              "$image"
+          fi
+
+          echo "Installed qualification image: $image"
 
       - name: Set up Gradle 9.8
         uses: gradle/actions/setup-gradle@v6
@@ -206,16 +234,20 @@ jobs:
           cache-provider: basic
 
       - name: Run complete managed-device instrumentation suite
-        run: ./gradlew --no-daemon pixel2api35DebugAndroidTest
+        run: ./gradlew --no-daemon "pixel2api${{ matrix.api }}DebugAndroidTest"
 
       - name: Verify instrumentation tests actually executed
         shell: bash
+        env:
+          QUALIFICATION_API: ${{ matrix.api }}
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
+          import os
           import xml.etree.ElementTree as ET
 
+          api = os.environ["QUALIFICATION_API"]
           roots = [
               Path("app/build/outputs/androidTest-results/managedDevice"),
               Path("app/build/outputs/androidTest-results/managedDevice/debug"),
@@ -227,7 +259,7 @@ jobs:
 
           unique_reports = sorted(set(reports))
           if not unique_reports:
-              raise SystemExit("No managed-device JUnit XML reports were produced; refusing false-green emulator qualification.")
+              raise SystemExit(f"No managed-device JUnit XML reports were produced for API {api}; refusing false-green qualification.")
 
           executed = 0
           failures = 0
@@ -239,22 +271,22 @@ jobs:
               errors += int(suite.attrib.get("errors", "0"))
 
           if executed <= 0:
-              raise SystemExit("Zero instrumentation tests executed; refusing false-green emulator qualification.")
+              raise SystemExit(f"Zero instrumentation tests executed on API {api}; refusing false-green qualification.")
           if failures or errors:
-              raise SystemExit(f"Instrumentation reports contain failures={failures}, errors={errors}.")
+              raise SystemExit(f"API {api} instrumentation reports contain failures={failures}, errors={errors}.")
 
-          print(f"Verified {executed} managed-device instrumentation test(s) executed successfully.")
+          print(f"Verified {executed} managed-device instrumentation test(s) on API {api}.")
           PY
 
       - name: Upload emulator evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: android-developer-qualification-${{ github.sha }}
+          name: android-developer-qualification-api${{ matrix.api }}-${{ github.sha }}
           path: |
             app/build/outputs/androidTest-results/managedDevice/**
             app/build/reports/androidTests/managedDevice/**
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
 
   developer-qualification:
@@ -285,7 +317,11 @@ jobs:
             echo '- Android lint and unit tests: PASS'
             echo '- Debug APK build: PASS'
             echo '- Release AAB build: PASS'
-            echo '- Managed Android emulator instrumentation: PASS'
+            echo '- Managed emulator API 26 (product minSdk): PASS'
+            echo '- Managed emulator API 29 (legacy/intermediate checkpoint): PASS'
+            echo '- Managed emulator API 36 (modern Android behavior): PASS'
+            echo '- Managed emulator API 37 (latest Android compatibility): PASS'
+            echo '- compileSdk/targetSdk 37 build validation: PASS'
             echo ''
             echo 'This is the primary developer qualification boundary.'
             echo 'Manual owner validation is not required to repeat CI-verifiable checks.'

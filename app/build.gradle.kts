@@ -1,3 +1,5 @@
+import com.android.build.api.dsl.ManagedVirtualDevice
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.plugin.compose")
@@ -77,11 +79,30 @@ android {
     testOptions {
         managedDevices {
             localDevices {
-                create("pixel2api35") {
+                create("pixel2api26") {
                     device = "Pixel 2"
-                    apiLevel = 35
+                    apiLevel = 26
                     systemImageSource = "aosp"
                     testedAbi = "x86_64"
+                }
+                create("pixel2api29") {
+                    device = "Pixel 2"
+                    apiLevel = 29
+                    systemImageSource = "aosp"
+                    testedAbi = "x86_64"
+                }
+                create("pixel2api36") {
+                    device = "Pixel 2"
+                    apiLevel = 36
+                    systemImageSource = "aosp"
+                    testedAbi = "x86_64"
+                }
+                create("pixel2api37") {
+                    device = "Pixel 2"
+                    apiLevel = 37
+                    systemImageSource = "google"
+                    testedAbi = "x86_64"
+                    pageAlignment = ManagedVirtualDevice.PageAlignment.FORCE_16KB_PAGES
                 }
             }
         }
@@ -119,4 +140,5 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
 }
