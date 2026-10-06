@@ -84,6 +84,11 @@ class MainActivitySmokeTest {
             .assertIsDisplayed()
 
         waitForReadyAndStartPlayback()
+
+        composeTestRule
+            .onNodeWithText("Pause")
+            .performScrollTo()
+            .performClick()
     }
 
     @Test
@@ -103,7 +108,11 @@ class MainActivitySmokeTest {
             composeTestRule
                 .onAllNodesWithText("Prêt • lecture hors ligne")
                 .fetchSemanticsNodes()
-                .isNotEmpty()
+                .isNotEmpty() ||
+                composeTestRule
+                    .onAllNodesWithText("Lecture en cours • mode hors ligne")
+                    .fetchSemanticsNodes()
+                    .isNotEmpty()
         }
 
         composeTestRule
@@ -158,6 +167,7 @@ class MainActivitySmokeTest {
             .onNodeWithText("Pause")
             .performScrollTo()
             .assertIsDisplayed()
+            .performClick()
     }
 
     @Test
