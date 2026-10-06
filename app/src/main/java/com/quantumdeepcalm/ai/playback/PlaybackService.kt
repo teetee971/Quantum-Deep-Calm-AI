@@ -4,6 +4,8 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import androidx.annotation.OptIn
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -16,6 +18,8 @@ class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
     private var playbackTimer: PlaybackTimer? = null
     private val timerHandler = Handler(Looper.getMainLooper())
+    private var userOutputGain = 1f
+    private var applyingServiceGain = false
 
     private val timerTick = object : Runnable {
         override fun run() {
@@ -27,15 +31,15 @@ class PlaybackService : MediaSessionService() {
 
             val timer = playbackTimer ?: return
             val snapshot = timer.snapshot(SystemClock.elapsedRealtime())
-            player.volume = snapshot.outputGain
+            applyEffectiveGain(snapshot.outputGain)
 
             if (snapshot.shouldStop) {
                 timerHandler.removeCallbacks(this)
-                player.volume = 0f
+                applyEffectiveGain(0f)
                 player.pause()
                 player.seekTo(0)
                 timer.reset()
-                player.volume = 1f
+                applyEffectiveGain(1f)
                 return
             }
 
@@ -51,11 +55,24 @@ class PlaybackService : MediaSessionService() {
             timerHandler.removeCallbacks(timerTick)
             if (isPlaying) {
                 val snapshot = timer.resume(now)
-                mediaSession?.player?.volume = snapshot.outputGain
+                applyEffectiveGain(snapshot.outputGain)
                 timerHandler.post(timerTick)
             } else {
                 timer.pause(now)
             }
+        }
+
+        override fun onVolumeChanged(volume: Float) {
+            if (applyingServiceGain) {
+                return
+            }
+
+            userOutputGain = volume.coerceIn(0f, 1f)
+            val fadeGain = playbackTimer
+                ?.snapshot(SystemClock.elapsedRealtime())
+                ?.outputGain
+                ?: 1f
+            applyEffectiveGain(fadeGain)
         }
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -78,8 +95,14 @@ class PlaybackService : MediaSessionService() {
             fadeDurationMs = FADE_OUT_DURATION_MS,
         )
 
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(C.USAGE_MEDIA)
+            .setContentType(C.AUDIO_CONTENT_TYPE_MUSIC)
+            .build()
+
         val player = ExoPlayer.Builder(this).build().apply {
             repeatMode = Player.REPEAT_MODE_OFF
+            setAudioAttributes(audioAttributes, true)
             addListener(playerListener)
         }
 
@@ -113,7 +136,22 @@ class PlaybackService : MediaSessionService() {
     private fun resetTimerAndGain() {
         timerHandler.removeCallbacks(timerTick)
         playbackTimer?.reset()
-        mediaSession?.player?.volume = 1f
+        applyEffectiveGain(1f)
+    }
+
+    private fun applyEffectiveGain(fadeGain: Float) {
+        val player = mediaSession?.player ?: return
+        val effectiveGain = (userOutputGain * fadeGain.coerceIn(0f, 1f)).coerceIn(0f, 1f)
+        if (player.volume == effectiveGain) {
+            return
+        }
+
+        applyingServiceGain = true
+        try {
+            player.volume = effectiveGain
+        } finally {
+            applyingServiceGain = false
+        }
     }
 
     private companion object {
