@@ -19,16 +19,45 @@ class MainActivitySmokeTest {
     val composeTestRule = createAndroidComposeRule<MainActivity>()
 
     @Test
-    fun offlinePlayerConnectsStartsCalmAndFeedsProgress() {
-        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+    fun homeIntentShortcutsOpenExpectedRealSessions() {
+        val expected = listOf(
+            "calm" to "Calm",
+            "sleep" to "Theta Meditation",
+            "focus" to "Delta Concentration",
+            "breathe" to "Alpha Relaxation",
+        )
+
+        expected.forEach { (intentId, sessionTitle) ->
             composeTestRule
-                .onAllNodesWithText("Commencer avec Calm")
-                .fetchSemanticsNodes()
-                .isNotEmpty()
+                .onNodeWithTag("home-intent-$intentId")
+                .performScrollTo()
+                .assertIsDisplayed()
+                .performClick()
+
+            composeTestRule
+                .onNodeWithText("Lecteur de méditation")
+                .assertIsDisplayed()
+            composeTestRule
+                .onNodeWithText(sessionTitle)
+                .assertIsDisplayed()
+
+            composeTestRule
+                .onNodeWithText("Retour")
+                .performScrollTo()
+                .performClick()
         }
 
         composeTestRule
-            .onNodeWithText("Commencer avec Calm")
+            .onNodeWithText("Respiration libre", substring = true)
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun offlinePlayerConnectsStartsCalmAndFeedsProgress() {
+        composeTestRule
+            .onNodeWithTag("home-intent-calm")
+            .assertIsDisplayed()
             .performClick()
 
         composeTestRule
@@ -51,7 +80,7 @@ class MainActivitySmokeTest {
             .performClick()
 
         composeTestRule
-            .onNodeWithText("Progression")
+            .onNodeWithTag("nav-progress")
             .performClick()
 
         composeTestRule
@@ -64,12 +93,10 @@ class MainActivitySmokeTest {
 
     @Test
     fun catalogSessionActuallySelectsItsOwnPlayerContent() {
-        composeTestRule.waitUntil(timeoutMillis = 15_000) {
-            composeTestRule
-                .onAllNodesWithText("Alpha Relaxation")
-                .fetchSemanticsNodes()
-                .isNotEmpty()
-        }
+        composeTestRule
+            .onNodeWithTag("home-catalog-toggle")
+            .performScrollTo()
+            .performClick()
 
         composeTestRule
             .onNodeWithTag("play-session-alpha-relaxation")
@@ -93,15 +120,9 @@ class MainActivitySmokeTest {
 
     @Test
     fun commercialPlayerExposesRealProgressAndApplicationOutputControls() {
-        composeTestRule.waitUntil(timeoutMillis = 15_000) {
-            composeTestRule
-                .onAllNodesWithText("Commencer avec Calm")
-                .fetchSemanticsNodes()
-                .isNotEmpty()
-        }
-
         composeTestRule
-            .onNodeWithText("Commencer avec Calm")
+            .onNodeWithTag("home-intent-calm")
+            .assertIsDisplayed()
             .performClick()
 
         composeTestRule.waitUntil(timeoutMillis = 15_000) {
@@ -134,15 +155,9 @@ class MainActivitySmokeTest {
 
     @Test
     fun activePlaybackSurvivesPlayerScreenNavigationAndReconnectsWithoutRestart() {
-        composeTestRule.waitUntil(timeoutMillis = 15_000) {
-            composeTestRule
-                .onAllNodesWithText("Commencer avec Calm")
-                .fetchSemanticsNodes()
-                .isNotEmpty()
-        }
-
         composeTestRule
-            .onNodeWithText("Commencer avec Calm")
+            .onNodeWithTag("home-intent-calm")
+            .assertIsDisplayed()
             .performClick()
 
         waitForReadyAndStartPlayback()
@@ -153,7 +168,8 @@ class MainActivitySmokeTest {
             .performClick()
 
         composeTestRule
-            .onNodeWithText("Commencer avec Calm")
+            .onNodeWithTag("home-intent-calm")
+            .assertIsDisplayed()
             .performClick()
 
         composeTestRule.waitUntil(timeoutMillis = 10_000) {
@@ -175,7 +191,7 @@ class MainActivitySmokeTest {
         val firstEveningSession = SessionCatalog.eveningSessions.first()
 
         composeTestRule
-            .onNodeWithText("Sommeil")
+            .onNodeWithTag("nav-sleep")
             .performClick()
 
         composeTestRule
@@ -196,8 +212,13 @@ class MainActivitySmokeTest {
     }
 
     @Test
-    fun favoriteAddedFromHomeAppearsInLibraryAndRemainsPlayable() {
-        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+    fun favoriteAddedFromHomeCatalogAppearsInLibraryAndRemainsPlayable() {
+        composeTestRule
+            .onNodeWithTag("home-catalog-toggle")
+            .performScrollTo()
+            .performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 10_000) {
             composeTestRule
                 .onAllNodesWithText("Ajouter aux favoris")
                 .fetchSemanticsNodes()
@@ -210,7 +231,7 @@ class MainActivitySmokeTest {
             .performClick()
 
         composeTestRule
-            .onNodeWithText("Bibliothèque")
+            .onNodeWithTag("nav-library")
             .performClick()
 
         composeTestRule
