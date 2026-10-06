@@ -1,0 +1,164 @@
+name: Autonomous Development Controller
+
+on:
+  schedule:
+    - cron: '13 */4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: autonomous-development-controller
+  cancel-in-progress: false
+
+jobs:
+  plan-next-item:
+    name: Select next autonomous work item
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Validate roadmap schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path('.github/autodev-roadmap.json')
+          data = json.loads(path.read_text(encoding='utf-8'))
+          assert data.get('version') == 1, 'Unsupported autodev roadmap version.'
+          items = data.get('items')
+          assert isinstance(items, list) and items, 'Roadmap must contain items.'
+
+          ids = set()
+          priorities = set()
+          valid_states = {'done', 'ready', 'blocked'}
+          for item in items:
+              item_id = item.get('id', '')
+              priority = item.get('priority')
+              state = item.get('state')
+              title = item.get('title', '')
+              acceptance = item.get('acceptance')
+
+              assert item_id.startswith('QDC-'), f'Invalid id: {item_id!r}'
+              assert item_id not in ids, f'Duplicate id: {item_id}'
+              assert isinstance(priority, int) and priority >= 0, f'Invalid priority for {item_id}'
+              assert priority not in priorities, f'Duplicate priority: {priority}'
+              assert state in valid_states, f'Invalid state for {item_id}: {state}'
+              assert isinstance(title, str) and title.strip(), f'Missing title for {item_id}'
+              assert isinstance(acceptance, list) and acceptance, f'Missing acceptance criteria for {item_id}'
+              assert all(isinstance(x, str) and x.strip() for x in acceptance), f'Invalid acceptance criteria for {item_id}'
+
+              ids.add(item_id)
+              priorities.add(priority)
+
+          print(f'Validated {len(items)} roadmap item(s).')
+          PY
+
+      - name: Open or preserve exactly one active work item
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          from pathlib import Path
+
+          repo = os.environ['GH_REPO']
+          data = json.loads(Path('.github/autodev-roadmap.json').read_text(encoding='utf-8'))
+          items = sorted(data['items'], key=lambda x: x['priority'])
+
+          def gh_json(args):
+              result = subprocess.run(
+                  ['gh', *args],
+                  check=True,
+                  text=True,
+                  stdout=subprocess.PIPE,
+              )
+              return json.loads(result.stdout or '[]')
+
+          issues = gh_json(['issue', 'list', '--repo', repo, '--state', 'all', '--limit', '200', '--json', 'number,title,state,url'])
+          open_prs = gh_json(['pr', 'list', '--repo', repo, '--state', 'open', '--limit', '100', '--json', 'number,title,headRefName,url'])
+          merged_prs = gh_json(['pr', 'list', '--repo', repo, '--state', 'merged', '--limit', '200', '--json', 'number,title,mergedAt,url'])
+
+          summary = Path(os.environ['GITHUB_STEP_SUMMARY'])
+
+          for item in items:
+              if item['state'] != 'ready':
+                  continue
+
+              item_id = item['id']
+              prefix = f'[AUTODEV {item_id}]'
+              exact_title = f"{prefix} {item['title']}"
+
+              if any(pr['title'].startswith(prefix) for pr in merged_prs):
+                  continue
+
+              active_pr = next((pr for pr in open_prs if pr['title'].startswith(prefix)), None)
+              if active_pr:
+                  summary.write_text(
+                      f"## Autonomous development\n\nActive PR: {active_pr['url']}\n\nNo new work item was created.\n",
+                      encoding='utf-8',
+                  )
+                  print(f"Active PR already exists for {item_id}: {active_pr['url']}")
+                  raise SystemExit(0)
+
+              matching_issues = [issue for issue in issues if issue['title'] == exact_title]
+              open_issue = next((issue for issue in matching_issues if issue['state'] == 'OPEN'), None)
+              if open_issue:
+                  summary.write_text(
+                      f"## Autonomous development\n\nActive issue: {open_issue['url']}\n\nWaiting for the connected coding agent.\n",
+                      encoding='utf-8',
+                  )
+                  print(f"Active issue already exists for {item_id}: {open_issue['url']}")
+                  raise SystemExit(0)
+
+              closed_issue = next((issue for issue in matching_issues if issue['state'] == 'CLOSED'), None)
+              if closed_issue:
+                  subprocess.run(
+                      ['gh', 'issue', 'reopen', str(closed_issue['number']), '--repo', repo],
+                      check=True,
+                  )
+                  summary.write_text(
+                      f"## Autonomous development\n\nReopened issue: {closed_issue['url']}\n\nIt had been closed without a merged AUTODEV PR, so it is not treated as completed.\n",
+                      encoding='utf-8',
+                  )
+                  print(f"Reopened incomplete work item {item_id}.")
+                  raise SystemExit(0)
+
+              acceptance = '\n'.join(f"- [ ] {criterion}" for criterion in item['acceptance'])
+              body = f"""## Objectif\n\n{item['title']}\n\n## Critères d'acceptation\n\n{acceptance}\n\n## Contrat d'exécution\n\n- Lire `.github/AUTODEV_AGENT.md` avant toute modification.\n- Une seule fonctionnalité produit est traitée à la fois.\n- Branche attendue : `autodev/{item_id.lower()}-<slug>`.\n- Titre PR attendu : `{prefix} <résumé>`.\n- Le corps de la PR doit contenir `Closes #<numéro de cette issue>`.\n- Ne jamais contourner Android CI, l'émulateur, Repo Guard ou CodeQL.\n- Les chemins sensibles peuvent être modifiés si nécessaire, mais ils désactivent l'auto-merge.\n\nL'issue n'est considérée terminée que lorsqu'une PR AUTODEV correspondante a été fusionnée.\n"""
+
+              created = subprocess.run(
+                  ['gh', 'issue', 'create', '--repo', repo, '--title', exact_title, '--body', body],
+                  check=True,
+                  text=True,
+                  stdout=subprocess.PIPE,
+              ).stdout.strip()
+
+              summary.write_text(
+                  f"## Autonomous development\n\nCreated next work item: {created}\n\nRoadmap item: `{item_id}`\n",
+                  encoding='utf-8',
+              )
+              print(f"Created work item {item_id}: {created}")
+              raise SystemExit(0)
+
+          summary.write_text(
+              '## Autonomous development\n\nNo ready item remains. Blocked items require an explicit architecture/privacy decision before activation.\n',
+              encoding='utf-8',
+          )
+          print('No ready roadmap item remains.')
+          PY
