@@ -42,10 +42,12 @@ class MainActivitySmokeTest {
 
         composeTestRule
             .onNodeWithText("Pause")
+            .performScrollTo()
             .performClick()
 
         composeTestRule
             .onNodeWithText("Retour")
+            .performScrollTo()
             .performClick()
 
         composeTestRule
@@ -82,6 +84,80 @@ class MainActivitySmokeTest {
             .assertIsDisplayed()
 
         waitForReadyAndStartPlayback()
+    }
+
+    @Test
+    fun commercialPlayerExposesRealProgressAndApplicationOutputControls() {
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            composeTestRule
+                .onAllNodesWithText("Commencer avec Calm")
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        }
+
+        composeTestRule
+            .onNodeWithText("Commencer avec Calm")
+            .performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            composeTestRule
+                .onAllNodesWithText("Prêt • lecture hors ligne")
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        }
+
+        composeTestRule
+            .onNodeWithTag("player-progress")
+            .assertIsDisplayed()
+        composeTestRule
+            .onNodeWithTag("player-app-volume")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeTestRule
+            .onNodeWithTag("player-intensity")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeTestRule
+            .onNodeWithText("volume système Android", substring = true)
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun activePlaybackSurvivesPlayerScreenNavigationAndReconnectsWithoutRestart() {
+        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+            composeTestRule
+                .onAllNodesWithText("Commencer avec Calm")
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        }
+
+        composeTestRule
+            .onNodeWithText("Commencer avec Calm")
+            .performClick()
+
+        waitForReadyAndStartPlayback()
+
+        composeTestRule
+            .onNodeWithText("Retour")
+            .performScrollTo()
+            .performClick()
+
+        composeTestRule
+            .onNodeWithText("Commencer avec Calm")
+            .performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 10_000) {
+            composeTestRule
+                .onAllNodesWithText("Lecture en cours • mode hors ligne")
+                .fetchSemanticsNodes()
+                .isNotEmpty()
+        }
+
+        composeTestRule
+            .onNodeWithText("Pause")
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 
     @Test
@@ -151,6 +227,7 @@ class MainActivitySmokeTest {
 
         composeTestRule
             .onNodeWithText("Lecture")
+            .performScrollTo()
             .performClick()
 
         composeTestRule.waitUntil(timeoutMillis = 10_000) {
@@ -162,6 +239,7 @@ class MainActivitySmokeTest {
 
         composeTestRule
             .onNodeWithText("Pause")
+            .performScrollTo()
             .assertIsDisplayed()
     }
 }
