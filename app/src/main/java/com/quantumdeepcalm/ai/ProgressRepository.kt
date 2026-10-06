@@ -16,10 +16,38 @@ internal class ProgressRepository(
     private val preferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
 
     fun load(): PlaybackProgress {
-        val count = preferences.getInt(KEY_STARTED_SESSION_COUNT, 0).coerceAtLeast(0)
-        val lastStartedAtMs = preferences.getLong(KEY_LAST_STARTED_AT_MS, 0L).takeIf { it > 0L }
-        val lastSessionId = preferences.getString(KEY_LAST_SESSION_ID, null)
-            ?.takeIf { it in SessionCatalog.ids }
+        val hasStoredTimestamp = preferences.contains(KEY_LAST_STARTED_AT_MS)
+        val rawCount = preferences.getInt(KEY_STARTED_SESSION_COUNT, 0)
+        val rawLastStartedAtMs = preferences.getLong(KEY_LAST_STARTED_AT_MS, 0L)
+        val rawLastSessionId = preferences.getString(KEY_LAST_SESSION_ID, null)
+
+        val count = rawCount.coerceAtLeast(0)
+        val lastStartedAtMs = rawLastStartedAtMs.takeIf { count > 0 && it > 0L }
+        val lastSessionId = rawLastSessionId
+            ?.takeIf { lastStartedAtMs != null && it in SessionCatalog.ids }
+
+        val needsRepair =
+            rawCount != count ||
+                hasStoredTimestamp != (lastStartedAtMs != null) ||
+                (lastStartedAtMs != null && rawLastStartedAtMs != lastStartedAtMs) ||
+                rawLastSessionId != lastSessionId
+
+        if (needsRepair) {
+            preferences.edit {
+                putInt(KEY_STARTED_SESSION_COUNT, count)
+                if (lastStartedAtMs == null) {
+                    remove(KEY_LAST_STARTED_AT_MS)
+                } else {
+                    putLong(KEY_LAST_STARTED_AT_MS, lastStartedAtMs)
+                }
+                if (lastSessionId == null) {
+                    remove(KEY_LAST_SESSION_ID)
+                } else {
+                    putString(KEY_LAST_SESSION_ID, lastSessionId)
+                }
+            }
+        }
+
         return PlaybackProgress(count, lastStartedAtMs, lastSessionId)
     }
 
