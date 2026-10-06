@@ -14,6 +14,7 @@ internal object CalmAudioGenerator {
     private const val CHANNELS = 1
     private const val BITS_PER_SAMPLE = 16
     private const val WAV_HEADER_SIZE = 44
+    private const val OUTPUT_GAIN = 0.32
     private val safeSessionId = Regex("^[a-z0-9-]+$")
 
     val expectedByteSize: Int
@@ -49,7 +50,7 @@ internal object CalmAudioGenerator {
                 0.58 * sin(2.0 * PI * profile.primaryHz * timeSeconds) +
                 0.27 * sin(2.0 * PI * profile.secondaryHz * timeSeconds) +
                 0.15 * sin(2.0 * PI * profile.accentHz * timeSeconds)
-            val normalized = (0.09 * slowEnvelope * tone).coerceIn(-1.0, 1.0)
+            val normalized = (OUTPUT_GAIN * slowEnvelope * tone).coerceIn(-1.0, 1.0)
             buffer.putShort((normalized * Short.MAX_VALUE).toInt().toShort())
         }
 
