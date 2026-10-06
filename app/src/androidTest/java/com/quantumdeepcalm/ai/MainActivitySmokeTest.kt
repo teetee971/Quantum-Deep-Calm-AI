@@ -1,12 +1,16 @@
 package com.quantumdeepcalm.ai
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNode
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
 import org.junit.Test
@@ -28,9 +32,10 @@ class MainActivitySmokeTest {
         )
 
         expected.forEach { (intentId, sessionTitle) ->
+            val tag = "home-intent-$intentId"
+            scrollHomeTo(tag)
             composeTestRule
-                .onNodeWithTag("home-intent-$intentId")
-                .performScrollTo()
+                .onNodeWithTag(tag)
                 .assertIsDisplayed()
                 .performClick()
 
@@ -47,9 +52,9 @@ class MainActivitySmokeTest {
                 .performClick()
         }
 
+        scrollHomeTo("home-intent-breathe")
         composeTestRule
             .onNodeWithText("Respiration libre", substring = true)
-            .performScrollTo()
             .assertIsDisplayed()
     }
 
@@ -93,14 +98,14 @@ class MainActivitySmokeTest {
 
     @Test
     fun catalogSessionActuallySelectsItsOwnPlayerContent() {
+        scrollHomeTo("home-catalog-toggle")
         composeTestRule
             .onNodeWithTag("home-catalog-toggle")
-            .performScrollTo()
             .performClick()
 
+        scrollHomeTo("play-session-alpha-relaxation")
         composeTestRule
             .onNodeWithTag("play-session-alpha-relaxation")
-            .performScrollTo()
             .performClick()
 
         composeTestRule
@@ -213,9 +218,9 @@ class MainActivitySmokeTest {
 
     @Test
     fun favoriteAddedFromHomeCatalogAppearsInLibraryAndRemainsPlayable() {
+        scrollHomeTo("home-catalog-toggle")
         composeTestRule
             .onNodeWithTag("home-catalog-toggle")
-            .performScrollTo()
             .performClick()
 
         composeTestRule.waitUntil(timeoutMillis = 10_000) {
@@ -225,6 +230,7 @@ class MainActivitySmokeTest {
                 .isNotEmpty()
         }
 
+        scrollHomeTo("play-session-calm")
         composeTestRule
             .onAllNodesWithText("Ajouter aux favoris")[0]
             .performScrollTo()
@@ -246,6 +252,12 @@ class MainActivitySmokeTest {
         composeTestRule
             .onNodeWithText("Retirer des favoris")
             .assertIsDisplayed()
+    }
+
+    private fun scrollHomeTo(tag: String) {
+        composeTestRule
+            .onNode(hasScrollAction())
+            .performScrollToNode(hasTestTag(tag))
     }
 
     private fun waitForReadyAndStartPlayback() {
