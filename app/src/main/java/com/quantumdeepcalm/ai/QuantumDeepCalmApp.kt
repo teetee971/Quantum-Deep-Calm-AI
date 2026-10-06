@@ -130,6 +130,7 @@ private fun QuantumDeepCalmApp() {
                                     restoreState = true
                                 }
                             },
+                            modifier = Modifier.testTag("nav-${destination.route}"),
                             icon = { Text(text = "•") },
                             label = { Text(destination.label) },
                         )
@@ -190,6 +191,8 @@ private fun HomeScreen(
     onOpenSession: (String) -> Unit,
     onOpenPrivacy: () -> Unit,
 ) {
+    var showCatalog by rememberSaveable { mutableStateOf(false) }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 28.dp),
@@ -203,15 +206,29 @@ private fun HomeScreen(
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Cinq ambiances générées sur votre appareil. Aucun compte ni connexion réseau requis.",
+                text = "Que voulez-vous faire maintenant ? Choisissez une intention pour démarrer immédiatement, hors ligne.",
                 style = MaterialTheme.typography.bodyLarge,
             )
-            Spacer(modifier = Modifier.height(18.dp))
-            Button(
-                onClick = { onOpenSession(SessionCatalog.defaultSession.id) },
-                modifier = Modifier.fillMaxWidth(),
+        }
+
+        items(
+            items = HomeIntentCatalog.intents,
+            key = { intent -> intent.id },
+        ) { intent ->
+            HomeIntentCard(
+                intent = intent,
+                onStart = { onOpenSession(intent.sessionId) },
+            )
+        }
+
+        item {
+            OutlinedButton(
+                onClick = { showCatalog = !showCatalog },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("home-catalog-toggle"),
             ) {
-                Text("Commencer avec Calm")
+                Text(if (showCatalog) "Masquer les ambiances" else "Voir toutes les ambiances")
             }
             Spacer(modifier = Modifier.height(8.dp))
             OutlinedButton(
@@ -220,19 +237,69 @@ private fun HomeScreen(
             ) {
                 Text("Confidentialité")
             }
-            Spacer(modifier = Modifier.height(12.dp))
         }
 
-        items(
-            items = SessionCatalog.sessions,
-            key = { session -> session.id },
-        ) { session ->
-            CalmSessionCard(
-                session = session,
-                isFavorite = session.id in favoriteIds,
-                onOpenSession = { onOpenSession(session.id) },
-                onToggleFavorite = { onToggleFavorite(session.id) },
+        if (showCatalog) {
+            item {
+                Text(
+                    text = "Toutes les ambiances",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = "Choisissez directement une session ou ajoutez-la à vos favoris.",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+
+            items(
+                items = SessionCatalog.sessions,
+                key = { session -> session.id },
+            ) { session ->
+                CalmSessionCard(
+                    session = session,
+                    isFavorite = session.id in favoriteIds,
+                    onOpenSession = { onOpenSession(session.id) },
+                    onToggleFavorite = { onToggleFavorite(session.id) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeIntentCard(
+    intent: HomeIntent,
+    onStart: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(22.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = intent.title,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold,
             )
+            Text(
+                text = intent.subtitle,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Button(
+                onClick = onStart,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("home-intent-${intent.id}"),
+            ) {
+                Text("Démarrer")
+            }
         }
     }
 }

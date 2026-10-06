@@ -1,12 +1,16 @@
 package com.quantumdeepcalm.ai
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
+import androidx.compose.ui.test.onNode
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
 import org.junit.Test
@@ -19,16 +23,46 @@ class MainActivitySmokeTest {
     val composeTestRule = createAndroidComposeRule<MainActivity>()
 
     @Test
-    fun offlinePlayerConnectsStartsCalmAndFeedsProgress() {
-        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+    fun homeIntentShortcutsOpenExpectedRealSessions() {
+        val expected = listOf(
+            "calm" to "Calm",
+            "sleep" to "Theta Meditation",
+            "focus" to "Delta Concentration",
+            "breathe" to "Alpha Relaxation",
+        )
+
+        expected.forEach { (intentId, sessionTitle) ->
+            val tag = "home-intent-$intentId"
+            scrollHomeTo(tag)
             composeTestRule
-                .onAllNodesWithText("Commencer avec Calm")
-                .fetchSemanticsNodes()
-                .isNotEmpty()
+                .onNodeWithTag(tag)
+                .assertIsDisplayed()
+                .performClick()
+
+            composeTestRule
+                .onNodeWithText("Lecteur de méditation")
+                .assertIsDisplayed()
+            composeTestRule
+                .onNodeWithText(sessionTitle)
+                .assertIsDisplayed()
+
+            composeTestRule
+                .onNodeWithText("Retour")
+                .performScrollTo()
+                .performClick()
         }
 
+        scrollHomeTo("home-intent-breathe")
         composeTestRule
-            .onNodeWithText("Commencer avec Calm")
+            .onNodeWithText("Respiration libre", substring = true)
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun offlinePlayerConnectsStartsCalmAndFeedsProgress() {
+        composeTestRule
+            .onNodeWithTag("home-intent-calm")
+            .assertIsDisplayed()
             .performClick()
 
         composeTestRule
@@ -51,7 +85,7 @@ class MainActivitySmokeTest {
             .performClick()
 
         composeTestRule
-            .onNodeWithText("Progression")
+            .onNodeWithTag("nav-progress")
             .performClick()
 
         composeTestRule
@@ -64,16 +98,14 @@ class MainActivitySmokeTest {
 
     @Test
     fun catalogSessionActuallySelectsItsOwnPlayerContent() {
-        composeTestRule.waitUntil(timeoutMillis = 15_000) {
-            composeTestRule
-                .onAllNodesWithText("Alpha Relaxation")
-                .fetchSemanticsNodes()
-                .isNotEmpty()
-        }
+        scrollHomeTo("home-catalog-toggle")
+        composeTestRule
+            .onNodeWithTag("home-catalog-toggle")
+            .performClick()
 
+        scrollHomeTo("play-session-alpha-relaxation")
         composeTestRule
             .onNodeWithTag("play-session-alpha-relaxation")
-            .performScrollTo()
             .performClick()
 
         composeTestRule
@@ -93,15 +125,9 @@ class MainActivitySmokeTest {
 
     @Test
     fun commercialPlayerExposesRealProgressAndApplicationOutputControls() {
-        composeTestRule.waitUntil(timeoutMillis = 15_000) {
-            composeTestRule
-                .onAllNodesWithText("Commencer avec Calm")
-                .fetchSemanticsNodes()
-                .isNotEmpty()
-        }
-
         composeTestRule
-            .onNodeWithText("Commencer avec Calm")
+            .onNodeWithTag("home-intent-calm")
+            .assertIsDisplayed()
             .performClick()
 
         composeTestRule.waitUntil(timeoutMillis = 15_000) {
@@ -134,15 +160,9 @@ class MainActivitySmokeTest {
 
     @Test
     fun activePlaybackSurvivesPlayerScreenNavigationAndReconnectsWithoutRestart() {
-        composeTestRule.waitUntil(timeoutMillis = 15_000) {
-            composeTestRule
-                .onAllNodesWithText("Commencer avec Calm")
-                .fetchSemanticsNodes()
-                .isNotEmpty()
-        }
-
         composeTestRule
-            .onNodeWithText("Commencer avec Calm")
+            .onNodeWithTag("home-intent-calm")
+            .assertIsDisplayed()
             .performClick()
 
         waitForReadyAndStartPlayback()
@@ -153,7 +173,8 @@ class MainActivitySmokeTest {
             .performClick()
 
         composeTestRule
-            .onNodeWithText("Commencer avec Calm")
+            .onNodeWithTag("home-intent-calm")
+            .assertIsDisplayed()
             .performClick()
 
         composeTestRule.waitUntil(timeoutMillis = 10_000) {
@@ -175,7 +196,7 @@ class MainActivitySmokeTest {
         val firstEveningSession = SessionCatalog.eveningSessions.first()
 
         composeTestRule
-            .onNodeWithText("Sommeil")
+            .onNodeWithTag("nav-sleep")
             .performClick()
 
         composeTestRule
@@ -196,21 +217,27 @@ class MainActivitySmokeTest {
     }
 
     @Test
-    fun favoriteAddedFromHomeAppearsInLibraryAndRemainsPlayable() {
-        composeTestRule.waitUntil(timeoutMillis = 15_000) {
+    fun favoriteAddedFromHomeCatalogAppearsInLibraryAndRemainsPlayable() {
+        scrollHomeTo("home-catalog-toggle")
+        composeTestRule
+            .onNodeWithTag("home-catalog-toggle")
+            .performClick()
+
+        composeTestRule.waitUntil(timeoutMillis = 10_000) {
             composeTestRule
                 .onAllNodesWithText("Ajouter aux favoris")
                 .fetchSemanticsNodes()
                 .isNotEmpty()
         }
 
+        scrollHomeTo("play-session-calm")
         composeTestRule
             .onAllNodesWithText("Ajouter aux favoris")[0]
             .performScrollTo()
             .performClick()
 
         composeTestRule
-            .onNodeWithText("Bibliothèque")
+            .onNodeWithTag("nav-library")
             .performClick()
 
         composeTestRule
@@ -225,6 +252,12 @@ class MainActivitySmokeTest {
         composeTestRule
             .onNodeWithText("Retirer des favoris")
             .assertIsDisplayed()
+    }
+
+    private fun scrollHomeTo(tag: String) {
+        composeTestRule
+            .onNode(hasScrollAction())
+            .performScrollToNode(hasTestTag(tag))
     }
 
     private fun waitForReadyAndStartPlayback() {
